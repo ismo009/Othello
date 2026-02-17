@@ -45,7 +45,7 @@ du jeu, évalue la qualité des réponses de son adversaire. Ce dernier essaie d
 maximiser la qualité de la position sachant que son adversaire fera tout pour
 minimiser. Il est également nécessaire d'élaborer une fonction d'évaluation
 permettant de mesurer la solution. Notons que la version proposée dans le cours
-doit être adaptée en fonction de vos besoins 77. Au vu de cette explosion
+doit être adaptée en fonction de vos besoins. Au vu de cette explosion
 combinatoire, il apparaît nécessaire de définir :
 
 • Profondeur maximale de recherche : par habitude, il est classique de considérer
