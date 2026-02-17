@@ -1,16 +1,18 @@
 """
 Othello - Interface graphique Pygame
-Jeu complet : Humain vs Humain (l'IA sera ajoutée plus tard)
+Modes : Humain vs Humain / Humain vs IA / IA vs IA
 """
 
 import pygame
 import sys
 import math
+import threading
 from othello import (
     TAILLE, VIDE, NOIR, BLANC,
     creer_plateau, coups_valides, jouer_coup,
     compter_pions, est_partie_finie, gagnant, adversaire
 )
+from ia import IAOthello
 
 # ─────────────────────────────────────────────────────────────
 # Couleurs
@@ -86,6 +88,12 @@ class AnimationPion:
 class JeuOthelloGUI:
     """Classe principale de l'interface graphique du jeu d'Othello."""
 
+    # Modes de jeu
+    MODE_MENU = 0
+    MODE_HVH = 1     # Humain vs Humain
+    MODE_HVA = 2     # Humain vs IA
+    MODE_AVA = 3     # IA vs IA
+
     def __init__(self):
         pygame.init()
         pygame.display.set_caption("Othello")
@@ -95,13 +103,24 @@ class JeuOthelloGUI:
 
         # Polices
         self.police_titre = pygame.font.SysFont("Segoe UI", 32, bold=True)
+        self.police_menu_titre = pygame.font.SysFont("Segoe UI", 56, bold=True)
         self.police_info = pygame.font.SysFont("Segoe UI", 20)
         self.police_score = pygame.font.SysFont("Segoe UI", 48, bold=True)
         self.police_petit = pygame.font.SysFont("Segoe UI", 16)
         self.police_bouton = pygame.font.SysFont("Segoe UI", 18, bold=True)
         self.police_fin = pygame.font.SysFont("Segoe UI", 40, bold=True)
+        self.police_menu_btn = pygame.font.SysFont("Segoe UI", 22, bold=True)
+        self.police_menu_desc = pygame.font.SysFont("Segoe UI", 14)
 
-        # État du jeu
+        # État
+        self.mode = self.MODE_MENU
+        self.ia = None
+        self.ia2 = None        # Pour le mode IA vs IA
+        self.ia_couleur = NOIR  # L'IA joue les noirs par défaut
+        self.ia_reflechit = False
+        self.ia_coup_pret = None
+        self.ia_stats = None
+
         self.reinitialiser()
 
     def reinitialiser(self):
@@ -113,9 +132,33 @@ class JeuOthelloGUI:
         self.dernier_coup = None
         self.pions_retournes = []
         self.animations = []
-        self.historique = []        # Pour rejouer la partie
+        self.historique = []
         self.tour_passe = False
         self.case_survolee = None
+        self.ia_reflechit = False
+        self.ia_coup_pret = None
+        self.ia_stats = None
+
+        # Recréer les IA si besoin
+        if self.mode == self.MODE_HVA:
+            self.ia = IAOthello(self.ia_couleur, profondeur_max=10, temps_max=5.0)
+        elif self.mode == self.MODE_AVA:
+            self.ia = IAOthello(BLANC, profondeur_max=8, temps_max=3.0)
+            self.ia2 = IAOthello(NOIR, profondeur_max=8, temps_max=3.0)
+
+    def lancer_mode(self, mode):
+        """Lance un mode de jeu."""
+        self.mode = mode
+        if mode == self.MODE_HVA:
+            self.ia_couleur = NOIR  # IA joue les noirs
+            self.ia = IAOthello(NOIR, profondeur_max=10, temps_max=5.0)
+        elif mode == self.MODE_AVA:
+            self.ia = IAOthello(BLANC, profondeur_max=8, temps_max=3.0)
+            self.ia2 = IAOthello(NOIR, profondeur_max=8, temps_max=3.0)
+        else:
+            self.ia = None
+            self.ia2 = None
+        self.reinitialiser()
 
     def pixel_vers_case(self, x, y):
         """Convertit les coordonnées pixel en coordonnées de case."""
@@ -171,6 +214,11 @@ class JeuOthelloGUI:
         """Dessine les coups possibles pour le joueur actuel."""
         if self.partie_finie or self.animations:
             return
+        # En mode IA, ne pas afficher les coups valides pour l'IA
+        if self.mode == self.MODE_HVA and self.joueur_actuel == self.ia_couleur:
+            return
+        if self.mode == self.MODE_AVA:
+            return
 
         coups = coups_valides(self.plateau, self.joueur_actuel)
         surface = pygame.Surface((TAILLE_CASE, TAILLE_CASE), pygame.SRCALPHA)
@@ -191,6 +239,11 @@ class JeuOthelloGUI:
     def dessiner_survol(self):
         """Met en surbrillance la case survolée si c'est un coup valide."""
         if self.case_survolee is None or self.partie_finie or self.animations:
+            return
+        # Pas de survol quand c'est le tour de l'IA
+        if self.mode == self.MODE_HVA and self.joueur_actuel == self.ia_couleur:
+            return
+        if self.mode == self.MODE_AVA:
             return
 
         l, c = self.case_survolee
@@ -321,22 +374,67 @@ class JeuOthelloGUI:
 
         # Tour actuel
         if not self.partie_finie:
-            tour_texte = "Tour des Blancs" if self.joueur_actuel == BLANC else "Tour des Noirs"
+            if self.mode == self.MODE_HVA:
+                if self.joueur_actuel == self.ia_couleur:
+                    tour_texte = "IA réfléchit..."
+                else:
+                    tour_texte = "A vous de jouer"
+            elif self.mode == self.MODE_AVA:
+                nom = "IA Blanc" if self.joueur_actuel == BLANC else "IA Noir"
+                tour_texte = f"{nom} réfléchit..."
+            else:
+                tour_texte = "Tour des Blancs" if self.joueur_actuel == BLANC else "Tour des Noirs"
             tour = self.police_info.render(tour_texte, True, COULEUR_TEXTE)
             self.ecran.blit(tour, (x_centre - tour.get_width() // 2, y))
             y += 30
 
-            nb_coups = len(coups_valides(self.plateau, self.joueur_actuel))
-            coups_txt = self.police_petit.render(
-                f"{nb_coups} coup(s) possible(s)", True, COULEUR_TEXTE_DIM
-            )
-            self.ecran.blit(coups_txt, (x_centre - coups_txt.get_width() // 2, y))
-            y += 25
+            # Indicateur IA qui réfléchit (animation)
+            if self.ia_reflechit:
+                dots = "." * (1 + (pygame.time.get_ticks() // 500) % 3)
+                think = self.police_petit.render(
+                    f"Analyse en cours{dots}", True, (255, 200, 100)
+                )
+                self.ecran.blit(think, (x_centre - think.get_width() // 2, y))
+                y += 25
+            else:
+                nb_coups = len(coups_valides(self.plateau, self.joueur_actuel))
+                coups_txt = self.police_petit.render(
+                    f"{nb_coups} coup(s) possible(s)", True, COULEUR_TEXTE_DIM
+                )
+                self.ecran.blit(coups_txt, (x_centre - coups_txt.get_width() // 2, y))
+                y += 25
 
             tour_num = self.police_petit.render(
                 f"Tour n°{len(self.historique) + 1}", True, COULEUR_TEXTE_DIM
             )
             self.ecran.blit(tour_num, (x_centre - tour_num.get_width() // 2, y))
+
+            # Statistiques IA du dernier coup
+            if self.ia_stats and self.mode in (self.MODE_HVA, self.MODE_AVA):
+                y += 30
+                pygame.draw.line(
+                    self.ecran, (80, 80, 80),
+                    (x_panneau + 20, y), (x_panneau + LARGEUR_PANNEAU - 20, y), 1
+                )
+                y += 10
+                ia_label = self.police_petit.render("Dernier coup IA :", True, (150, 200, 255))
+                self.ecran.blit(ia_label, (x_centre - ia_label.get_width() // 2, y))
+                y += 20
+                for key, label in [('profondeur_atteinte', 'Profondeur'),
+                                    ('noeuds', 'Noeuds'),
+                                    ('coupes', 'Coupes α-β'),
+                                    ('tt_hits', 'Cache TT'),
+                                    ('temps', 'Temps')]:
+                    val = self.ia_stats.get(key, 0)
+                    if key == 'temps':
+                        txt = f"{label}: {val:.2f}s"
+                    elif key == 'noeuds':
+                        txt = f"{label}: {val:,}"
+                    else:
+                        txt = f"{label}: {val}"
+                    stat_render = self.police_petit.render(txt, True, COULEUR_TEXTE_DIM)
+                    self.ecran.blit(stat_render, (x_panneau + 25, y))
+                    y += 18
         else:
             self.dessiner_resultat(x_centre, y)
 
@@ -375,26 +473,36 @@ class JeuOthelloGUI:
         self.ecran.blit(detail, (x_centre - detail.get_width() // 2, y))
 
     def dessiner_bouton_nouvelle_partie(self, x_panneau):
-        """Dessine le bouton 'Nouvelle Partie'."""
+        """Dessine les boutons 'Nouvelle Partie' et 'Menu'."""
         largeur_btn = 180
-        hauteur_btn = 40
+        hauteur_btn = 36
         x_btn = x_panneau + (LARGEUR_PANNEAU - largeur_btn) // 2
-        y_btn = HAUTEUR_FENETRE - 60
 
+        # Bouton Nouvelle Partie
+        y_btn = HAUTEUR_FENETRE - 100
         self.rect_bouton = pygame.Rect(x_btn, y_btn, largeur_btn, hauteur_btn)
-
-        # Vérifier si survolé
         mx, my = pygame.mouse.get_pos()
         survol = self.rect_bouton.collidepoint(mx, my)
         couleur = COULEUR_BOUTON_HOVER if survol else COULEUR_BOUTON
-
         pygame.draw.rect(self.ecran, couleur, self.rect_bouton, border_radius=8)
         pygame.draw.rect(self.ecran, (100, 100, 100), self.rect_bouton, 1, border_radius=8)
-
         texte = self.police_bouton.render("Nouvelle Partie", True, COULEUR_TEXTE)
         self.ecran.blit(texte, (
             x_btn + (largeur_btn - texte.get_width()) // 2,
             y_btn + (hauteur_btn - texte.get_height()) // 2
+        ))
+
+        # Bouton Menu
+        y_btn2 = HAUTEUR_FENETRE - 55
+        self.rect_bouton_menu = pygame.Rect(x_btn, y_btn2, largeur_btn, hauteur_btn)
+        survol2 = self.rect_bouton_menu.collidepoint(mx, my)
+        couleur2 = COULEUR_BOUTON_HOVER if survol2 else COULEUR_BOUTON
+        pygame.draw.rect(self.ecran, couleur2, self.rect_bouton_menu, border_radius=8)
+        pygame.draw.rect(self.ecran, (100, 100, 100), self.rect_bouton_menu, 1, border_radius=8)
+        texte2 = self.police_bouton.render("Menu", True, COULEUR_TEXTE)
+        self.ecran.blit(texte2, (
+            x_btn + (largeur_btn - texte2.get_width()) // 2,
+            y_btn2 + (hauteur_btn - texte2.get_height()) // 2
         ))
 
     def dessiner_coordonnees(self):
@@ -442,6 +550,125 @@ class JeuOthelloGUI:
         self.ecran.blit(rendu, (cx - rendu.get_width() // 2, cy - rendu.get_height() // 2))
 
     # ─────────────────────────────────────────────────────────
+    # Menu
+    # ─────────────────────────────────────────────────────────
+
+    def dessiner_menu(self):
+        """Dessine l'écran de menu principal."""
+        self.ecran.fill((20, 25, 20))
+
+        cx = LARGEUR_FENETRE // 2
+        y = 60
+
+        # Titre
+        titre = self.police_menu_titre.render("OTHELLO", True, (100, 220, 100))
+        self.ecran.blit(titre, (cx - titre.get_width() // 2, y))
+        y += 80
+
+        sous_titre = self.police_info.render("Choisissez un mode de jeu", True, COULEUR_TEXTE_DIM)
+        self.ecran.blit(sous_titre, (cx - sous_titre.get_width() // 2, y))
+        y += 60
+
+        # Boutons de mode
+        mx, my = pygame.mouse.get_pos()
+        largeur_btn = 340
+        hauteur_btn = 70
+
+        boutons = [
+            ("Humain vs Humain", "Deux joueurs sur le même écran", self.MODE_HVH),
+            ("Humain vs IA", "Affrontez l'IA imbattable", self.MODE_HVA),
+            ("IA vs IA", "Regardez deux IA s'affronter", self.MODE_AVA),
+        ]
+
+        self.rects_menu = []
+
+        for label, desc, mode in boutons:
+            x_btn = cx - largeur_btn // 2
+            rect = pygame.Rect(x_btn, y, largeur_btn, hauteur_btn)
+            self.rects_menu.append((rect, mode))
+
+            survol = rect.collidepoint(mx, my)
+            couleur_bg = (50, 80, 50) if survol else (40, 50, 40)
+            couleur_bord = (100, 200, 100) if survol else (60, 80, 60)
+
+            pygame.draw.rect(self.ecran, couleur_bg, rect, border_radius=12)
+            pygame.draw.rect(self.ecran, couleur_bord, rect, 2, border_radius=12)
+
+            # Label
+            lbl = self.police_menu_btn.render(label, True, COULEUR_TEXTE)
+            self.ecran.blit(lbl, (cx - lbl.get_width() // 2, y + 15))
+
+            # Description
+            d = self.police_menu_desc.render(desc, True, COULEUR_TEXTE_DIM)
+            self.ecran.blit(d, (cx - d.get_width() // 2, y + 44))
+
+            y += hauteur_btn + 20
+
+        # Pied de page
+        y += 20
+        footer = self.police_petit.render("Appuyez sur Echap pour quitter", True, (80, 80, 80))
+        self.ecran.blit(footer, (cx - footer.get_width() // 2, y))
+
+    def gerer_clic_menu(self, x, y):
+        """Gère un clic dans le menu."""
+        if not hasattr(self, 'rects_menu'):
+            return
+        for rect, mode in self.rects_menu:
+            if rect.collidepoint(x, y):
+                self.lancer_mode(mode)
+                return
+
+    # ─────────────────────────────────────────────────────────
+    # IA
+    # ─────────────────────────────────────────────────────────
+
+    def est_tour_ia(self):
+        """Vérifie si c'est le tour de l'IA."""
+        if self.partie_finie or self.animations:
+            return False
+        if self.mode == self.MODE_HVA and self.joueur_actuel == self.ia_couleur:
+            return True
+        if self.mode == self.MODE_AVA:
+            return True
+        return False
+
+    def lancer_reflexion_ia(self):
+        """Lance la réflexion de l'IA dans un thread séparé."""
+        if self.ia_reflechit:
+            return
+
+        self.ia_reflechit = True
+        self.ia_coup_pret = None
+
+        def _penser():
+            if self.mode == self.MODE_AVA:
+                ia = self.ia if self.joueur_actuel == BLANC else self.ia2
+            else:
+                ia = self.ia
+
+            # Copier le plateau pour le thread
+            plateau_copie = [row[:] for row in self.plateau]
+            ia.couleur = self.joueur_actuel
+            coup = ia.choisir_coup(plateau_copie)
+            self.ia_stats = ia.obtenir_stats()
+            self.ia_coup_pret = coup
+
+        thread = threading.Thread(target=_penser, daemon=True)
+        thread.start()
+
+    def appliquer_coup_ia(self):
+        """Applique le coup choisi par l'IA."""
+        if self.ia_coup_pret is None:
+            return
+
+        coup = self.ia_coup_pret
+        self.ia_coup_pret = None
+        self.ia_reflechit = False
+
+        if coup is not None:
+            self.effectuer_coup(coup[0], coup[1])
+
+    # ─────────────────────────────────────────────────────────
     # Logique de jeu
     # ─────────────────────────────────────────────────────────
 
@@ -452,7 +679,19 @@ class JeuOthelloGUI:
             self.reinitialiser()
             return
 
+        # Clic sur le bouton menu
+        if hasattr(self, 'rect_bouton_menu') and self.rect_bouton_menu.collidepoint(x, y):
+            self.mode = self.MODE_MENU
+            self.ia = None
+            self.ia2 = None
+            self.ia_reflechit = False
+            return
+
         if self.partie_finie or self.animations:
+            return
+
+        # Ne pas permettre de cliquer pendant le tour de l'IA
+        if self.est_tour_ia():
             return
 
         ligne, col = self.pixel_vers_case(x, y)
@@ -524,28 +763,52 @@ class JeuOthelloGUI:
                     en_cours = False
 
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    self.gerer_clic(*event.pos)
+                    if self.mode == self.MODE_MENU:
+                        self.gerer_clic_menu(*event.pos)
+                    else:
+                        self.gerer_clic(*event.pos)
 
                 elif event.type == pygame.MOUSEMOTION:
-                    l, c = self.pixel_vers_case(*event.pos)
-                    self.case_survolee = (l, c) if l is not None else None
+                    if self.mode != self.MODE_MENU:
+                        l, c = self.pixel_vers_case(*event.pos)
+                        self.case_survolee = (l, c) if l is not None else None
 
                 elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_n:
+                    if event.key == pygame.K_n and self.mode != self.MODE_MENU:
                         self.reinitialiser()
+                    elif event.key == pygame.K_m or (event.key == pygame.K_ESCAPE
+                                                      and self.mode != self.MODE_MENU):
+                        self.mode = self.MODE_MENU
+                        self.ia_reflechit = False
                     elif event.key == pygame.K_ESCAPE:
                         en_cours = False
 
+            # ─── IA ───
+            if self.mode != self.MODE_MENU:
+                # Appliquer le coup de l'IA s'il est prêt
+                if self.ia_coup_pret is not None:
+                    self.appliquer_coup_ia()
+
+                # Lancer la réflexion de l'IA si c'est son tour
+                if (self.est_tour_ia() and not self.ia_reflechit
+                        and not self.animations and not self.partie_finie):
+                    # Petit délai pour que l'animation se termine visuellement
+                    pygame.time.wait(200)
+                    self.lancer_reflexion_ia()
+
             # ─── Dessin ───
-            self.ecran.fill((20, 20, 20))
-            self.dessiner_coordonnees()
-            self.dessiner_plateau()
-            self.dessiner_coups_valides()
-            self.dessiner_survol()
-            self.dessiner_pions()
-            self.dessiner_animations()
-            self.dessiner_ecran_fin()
-            self.dessiner_panneau_info()
+            if self.mode == self.MODE_MENU:
+                self.dessiner_menu()
+            else:
+                self.ecran.fill((20, 20, 20))
+                self.dessiner_coordonnees()
+                self.dessiner_plateau()
+                self.dessiner_coups_valides()
+                self.dessiner_survol()
+                self.dessiner_pions()
+                self.dessiner_animations()
+                self.dessiner_ecran_fin()
+                self.dessiner_panneau_info()
 
             pygame.display.flip()
             self.horloge.tick(FPS)
