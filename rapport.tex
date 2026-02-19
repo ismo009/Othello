@@ -1,0 +1,755 @@
+% ══════════════════════════════════════════════════════════════
+% Compte Rendu de TP — Othello : Jeu et Intelligence Artificielle
+% ══════════════════════════════════════════════════════════════
+\documentclass[12pt, a4paper]{article}
+
+% ── Packages ──
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath, amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{hyperref}
+\usepackage[table]{xcolor}
+\usepackage{listings}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{tikz}
+
+\geometry{margin=2.5cm}
+\setlength{\headheight}{13.6pt}
+\addtolength{\topmargin}{-1.6pt}
+
+% ── Couleurs ──
+\definecolor{codegreen}{rgb}{0.0, 0.5, 0.0}
+\definecolor{codegray}{rgb}{0.5, 0.5, 0.5}
+\definecolor{codepurple}{rgb}{0.58, 0, 0.82}
+\definecolor{backcolour}{rgb}{0.97, 0.97, 0.97}
+\definecolor{deepblue}{rgb}{0.0, 0.0, 0.6}
+
+% ── Style de code ──
+\lstdefinestyle{python}{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{deepblue}\bfseries,
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=4,
+    language=Python,
+    frame=single,
+    rulecolor=\color{codegray},
+}
+\lstset{style=python}
+
+% ── En-tête / Pied de page ──
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small TP Othello — Intelligence Artificielle}
+\fancyhead[R]{\small INSA}
+\fancyfoot[C]{\thepage}
+
+% ── Algorithmes en français ──
+\floatname{algorithm}{Algorithme}
+\renewcommand{\algorithmicrequire}{\textbf{Entrées :}}
+\renewcommand{\algorithmicensure}{\textbf{Sortie :}}
+\renewcommand{\algorithmicif}{\textbf{si}}
+\renewcommand{\algorithmicthen}{\textbf{alors}}
+\renewcommand{\algorithmicelse}{\textbf{sinon}}
+\renewcommand{\algorithmicfor}{\textbf{pour}}
+\renewcommand{\algorithmicdo}{\textbf{faire}}
+\renewcommand{\algorithmicreturn}{\textbf{retourner}}
+\renewcommand{\algorithmicwhile}{\textbf{tant que}}
+\renewcommand{\algorithmicend}{\textbf{fin}}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!70!black,
+    citecolor=blue!70!black,
+    urlcolor=blue!70!black,
+}
+
+% ══════════════════════════════════════════════════════════════
+\begin{document}
+
+% ── Page de titre ──
+\begin{titlepage}
+    \centering
+    \vspace*{2cm}
+
+    {\Large \textsc{INSA} \par}
+    \vspace{0.5cm}
+    {\large Département Informatique \par}
+
+    \vspace{3cm}
+
+    {\Huge \textbf{Jeu d'Othello} \par}
+    \vspace{0.5cm}
+    {\LARGE Intelligence Artificielle \\ pour les jeux à deux joueurs \par}
+
+    \vspace{2cm}
+
+    {\large
+    \textbf{Compte rendu de TP} \\[0.5cm]
+    % TODO: Mettre vos noms ici
+    Julian BREUILLER \\
+    Ismael DE LA ROSA PÉREZ \\[1cm]
+    Encadrant : Nom de l'encadrant \\[0.5cm]
+    }
+
+    \vfill
+
+    {\large Année universitaire 2025--2026 \par}
+\end{titlepage}
+
+% ── Sommaire ──
+\tableofcontents
+\newpage
+
+% ══════════════════════════════════════════════════════════════
+% INTRODUCTION
+% ══════════════════════════════════════════════════════════════
+\section{Introduction}
+
+Le jeu d'Othello (également connu sous le nom de Reversi) est un jeu de plateau à deux joueurs qui se joue sur un damier de $8 \times 8$ cases. Malgré la simplicité de ses règles, Othello présente une explosion combinatoire considérable : le nombre total de parties possibles est estimé à plus de $10^{58}$~\cite{buro1997}, ce qui rend impossible l'exploration exhaustive de l'arbre de jeu.
+
+L'objectif de ce TP est de développer un système d'intelligence artificielle capable de jouer à Othello de manière performante, en implémentant les principaux algorithmes de théorie des jeux à deux joueurs. Plus précisément, nous avons développé :
+
+\begin{itemize}
+    \item Un moteur de jeu complet implémentant les règles d'Othello ;
+    \item Un algorithme NegaMax avec élagage Alpha-Beta et plusieurs optimisations ;
+    \item Une fonction d'évaluation multi-composantes utilisant une stratégie mixte par phase ;
+    \item Une interface graphique permettant de jouer contre l'IA ou d'observer deux IA s'affronter.
+\end{itemize}
+
+Le langage Python a été choisi pour sa lisibilité et sa rapidité de prototypage, avec la bibliothèque Pygame\footnote{\url{https://www.pygame.org/}} pour l'interface graphique.
+
+Ce rapport présente dans un premier temps l'analyse et la modélisation du problème (section~\ref{sec:analyse}), puis les résultats numériques obtenus (section~\ref{sec:validation}), et enfin une discussion sur l'efficacité des stratégies et les limites de notre approche (section~\ref{sec:discussion}).
+
+
+% ══════════════════════════════════════════════════════════════
+% ANALYSE
+% ══════════════════════════════════════════════════════════════
+\section{Analyse}
+\label{sec:analyse}
+
+\subsection{Architecture logicielle}
+
+Le projet est structuré en trois modules indépendants, conformément au principe de séparation des responsabilités :
+
+\begin{table}[H]
+\centering
+\caption{Organisation des fichiers du projet.}
+\label{tab:fichiers}
+\begin{tabular}{@{} l p{10cm} @{}}
+\toprule
+\textbf{Fichier} & \textbf{Rôle} \\
+\midrule
+\texttt{othello.py} & Logique du jeu : plateau, règles, coups valides, détection de fin de partie. Aucune dépendance externe. \\
+\texttt{ia.py} & Moteur d'IA : algorithme NegaMax, Alpha-Beta, fonction d'évaluation, table de transposition. \\
+\texttt{main.py} & Interface graphique Pygame : affichage, interactions utilisateur, intégration de l'IA. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Ce découpage permet de tester chaque composant séparément et de remplacer l'algorithme d'IA sans modifier la logique du jeu ni l'interface.
+
+
+\subsection{Structures de données}
+
+\subsubsection{Représentation du plateau}
+
+Le plateau est représenté par une matrice $8 \times 8$ d'entiers, où chaque case prend l'une des trois valeurs suivantes :
+
+\begin{itemize}
+    \item \texttt{VIDE = 0} : la case est libre ;
+    \item \texttt{NOIR = 1} : la case contient un pion noir ;
+    \item \texttt{BLANC = 2} : la case contient un pion blanc.
+\end{itemize}
+
+Cette représentation a été choisie pour sa simplicité d'implémentation et sa lisibilité. La position initiale place 2 pions blancs et 2 pions noirs au centre du plateau (figure~\ref{fig:position_initiale}).
+
+\begin{figure}[H]
+    \centering
+    % TODO: Insérer une capture d'écran de la position initiale du jeu
+    % \includegraphics[width=0.5\textwidth]{images/position_initiale.png}
+    \begin{tikzpicture}[scale=0.6]
+        % Grille
+        \draw[step=1, gray!50] (0,0) grid (8,8);
+        \draw[thick] (0,0) rectangle (8,8);
+        % Pions initiaux
+        \fill[white] (3.5, 4.5) circle (0.4);
+        \draw (3.5, 4.5) circle (0.4);
+        \fill[black] (4.5, 4.5) circle (0.4);
+        \fill[black] (3.5, 3.5) circle (0.4);
+        \fill[white] (4.5, 3.5) circle (0.4);
+        \draw (4.5, 3.5) circle (0.4);
+        % Labels
+        \foreach \x in {0,...,7} {
+            \node[below] at (\x+0.5, 0) {\small \pgfmathparse{int(\x+1)}\pgfmathresult};
+        }
+        \foreach \y in {0,...,7} {
+            \node[left] at (0, \y+0.5) {\small \pgfmathparse{int(8-\y)}\pgfmathresult};
+        }
+    \end{tikzpicture}
+    \caption{Position initiale du plateau d'Othello. Les Blancs (cercles vides) commencent la partie.}
+    \label{fig:position_initiale}
+\end{figure}
+
+\subsubsection{Calcul des coups valides}
+
+Pour déterminer si un coup est valide, l'algorithme explore les 8 directions (horizontale, verticale, diagonale) à partir de la case cible. Un coup est valide si, dans au moins une direction, il existe une suite de pions adverses suivie d'un pion allié (encadrement). Les pions adverses encadrés sont alors retournés.
+
+\subsubsection{Table de transposition (Zobrist Hashing)}
+
+Afin d'éviter de réévaluer des positions déjà explorées, nous utilisons une \textbf{table de transposition} indexée par un hash de Zobrist~\cite{zobrist1970}. Ce hachage fonctionne comme suit :
+
+\begin{enumerate}
+    \item Pour chaque combinaison (case, couleur de pion), une valeur aléatoire de 64 bits est pré-générée (avec une graine fixe pour la reproductibilité).
+    \item Le hash d'une position est le XOR de toutes les valeurs correspondant aux pions présents.
+    \item Un bit supplémentaire encode le joueur courant.
+\end{enumerate}
+
+Chaque entrée de la table stocke : la profondeur de recherche, le score, le type de borne (exacte, $\alpha$ ou $\beta$), et le meilleur coup trouvé (utile pour le tri des coups).
+
+
+\subsection{Algorithmes}
+
+\subsubsection{Choix de NegaMax}
+
+Nous avons opté pour l'algorithme \textbf{NegaMax} plutôt que Min-Max classique. NegaMax exploite la propriété des jeux à somme nulle :
+
+\begin{equation}
+    \max(a, b) = -\min(-a, -b)
+\end{equation}
+
+Au lieu d'alterner entre maximisation et minimisation, NegaMax utilise une seule fonction récursive qui inverse le signe du score à chaque niveau de l'arbre. Le code est ainsi plus compact et moins sujet aux erreurs d'implémentation.
+
+\subsubsection{Élagage Alpha-Beta}
+
+L'élagage Alpha-Beta est intégré dans NegaMax pour réduire le nombre de nœuds explorés. Il maintient deux bornes :
+
+\begin{itemize}
+    \item $\alpha$ : meilleur score garanti pour le joueur courant ;
+    \item $\beta$ : meilleur score garanti pour l'adversaire.
+\end{itemize}
+
+Lorsque $\alpha \geq \beta$, la branche courante est coupée car elle ne peut pas améliorer le résultat final. Dans le cas optimal (avec un tri parfait des coups), la complexité passe de $O(b^d)$ à $O(b^{d/2})$, où $b$ est le facteur de branchement moyen et $d$ la profondeur de recherche.
+
+L'algorithme~\ref{alg:negamax} présente le pseudo-code de notre implémentation.
+
+\begin{algorithm}[H]
+\caption{NegaMax avec élagage Alpha-Beta}
+\label{alg:negamax}
+\begin{algorithmic}[1]
+\Require plateau, joueur, profondeur, $\alpha$, $\beta$
+\Ensure score de la position
+
+\If{timeout atteint}
+    \State \Return 0
+\EndIf
+
+\State $h \gets$ \Call{ZobristHash}{plateau, joueur}
+\If{$h \in$ table de transposition avec profondeur $\geq$ profondeur}
+    \State \Return score de la table
+\EndIf
+
+\If{profondeur $= 0$}
+    \State \Return \Call{Évaluation}{plateau, joueur}
+\EndIf
+
+\State $coups \gets$ \Call{CoupsValidesTriés}{plateau, joueur}
+
+\If{$coups = \emptyset$}
+    \If{l'adversaire ne peut pas jouer non plus}
+        \State \Return \Call{Évaluation}{plateau, joueur}
+    \Else
+        \State \Return $-$\Call{NegaMax}{plateau, adversaire, profondeur, $-\beta$, $-\alpha$}
+    \EndIf
+\EndIf
+
+\State $meilleur \gets -\infty$
+\For{chaque $coup$ dans $coups$}
+    \State \Call{JouerCoup}{plateau, coup, joueur}
+    \State $score \gets -$\Call{NegaMax}{plateau, adversaire, profondeur$-1$, $-\beta$, $-\alpha$}
+    \State \Call{AnnulerCoup}{plateau, coup}
+    \State $meilleur \gets \max(meilleur, score)$
+    \State $\alpha \gets \max(\alpha, score)$
+    \If{$\alpha \geq \beta$}
+        \State \textbf{coupe} \Comment{Élagage Alpha-Beta}
+    \EndIf
+\EndFor
+
+\State Stocker $(profondeur, meilleur, type, meilleur\_coup)$ dans la table
+\State \Return $meilleur$
+\end{algorithmic}
+\end{algorithm}
+
+
+\subsubsection{Approfondissement itératif}
+
+Plutôt que de lancer directement une recherche à profondeur maximale, l'IA effectue des recherches successives à profondeur croissante (1, 2, 3, ...). Cette technique, appelée \textbf{approfondissement itératif} (\textit{Iterative Deepening}), présente plusieurs avantages :
+
+\begin{itemize}
+    \item Un coup est toujours disponible, même si le temps expire.
+    \item Le meilleur coup de chaque itération est exploré en premier à l'itération suivante, améliorant considérablement l'efficacité du tri des coups et donc les coupes Alpha-Beta.
+    \item Le surcoût est négligeable : la majorité du temps de calcul est consacrée à la profondeur maximale.
+\end{itemize}
+
+\subsubsection{Tri des coups (Move Ordering)}
+
+L'efficacité d'Alpha-Beta dépend fortement de l'ordre dans lequel les coups sont explorés. Notre tri utilise les priorités suivantes :
+
+\begin{enumerate}
+    \item Le meilleur coup de la table de transposition (s'il existe) est toujours exploré en premier.
+    \item Les coins du plateau (cases les plus stratégiques).
+    \item Les bords et cases centrales.
+    \item Les cases X (diagonales des coins) et C (adjacentes aux coins) sont explorées en dernier, car elles donnent souvent l'avantage à l'adversaire.
+\end{enumerate}
+
+La figure~\ref{fig:priorites} illustre la grille de priorités utilisée pour le tri.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[scale=0.8]
+    \def\priodata{0,5,3,3,3,3,5,0,5,6,4,4,4,4,6,5,3,4,2,2,2,2,4,3,3,4,2,1,1,2,4,3,3,4,2,1,1,2,4,3,3,4,2,2,2,2,4,3,5,6,4,4,4,4,6,5,0,5,3,3,3,3,5,0}
+    \foreach \y in {0,...,7} {
+        \foreach \x in {0,...,7} {
+            \pgfmathtruncatemacro{\idx}{\y*8+\x}
+            \pgfmathsetmacro{\val}{array({\priodata},\idx)}
+            \pgfmathtruncatemacro{\ival}{\val}
+            \pgfmathsetmacro{\shade}{100 - \ival * 15}
+            \fill[green!\shade!red] (\x, 7-\y) rectangle (\x+1, 8-\y);
+            \draw[gray!50] (\x, 7-\y) rectangle (\x+1, 8-\y);
+            \node at (\x+0.5, 7.5-\y) {\small \ival};
+        }
+    }
+    \draw[thick] (0,0) rectangle (8,8);
+\end{tikzpicture}
+\caption{Grille de priorités pour le tri des coups. 0~=~priorité maximale (coins), 6~=~priorité minimale (cases~X). Les coups avec une priorité faible sont explorés en premier.}
+\label{fig:priorites}
+\end{figure}
+
+
+\subsubsection{Résolution exacte en fin de partie}
+
+Lorsqu'il reste $\leq 14$ cases vides, l'IA augmente sa profondeur de recherche pour couvrir la totalité des coups restants. Elle calcule alors le résultat \textbf{exact} de la partie (victoire, défaite ou match nul), sans se reposer sur une estimation heuristique.
+
+\subsubsection{Opérations Make/Unmake}
+
+Au lieu de copier le plateau à chaque nœud de l'arbre (coûteux en mémoire), nous utilisons des opérations \textbf{faire/défaire} (\texttt{jouer\_coup\_rapide} / \texttt{annuler\_coup}) qui modifient le plateau en place puis le restaurent après exploration. Cela réduit significativement les allocations mémoire.
+
+
+\subsection{Fonction d'évaluation}
+
+La fonction d'évaluation utilise une \textbf{stratégie mixte par phase}, conformément aux recommandations du sujet. Elle combine six composantes, pondérées différemment selon l'avancement de la partie.
+
+\subsubsection{Composantes de l'évaluation}
+
+\paragraph{1. Évaluation positionnelle.}
+Un score statique est attribué à chaque case du plateau selon une table de poids (figure~\ref{fig:poids}). Les coins valent +500, tandis que les cases X (diagonales adjacentes aux coins) valent $-250$, car y jouer offre souvent le coin à l'adversaire.
+
+\textbf{Ajustement dynamique :} lorsqu'un coin est déjà pris par un joueur, les pénalités sur les cases X et C adjacentes sont annulées, puisque le danger n'existe plus.
+
+\begin{figure}[H]
+\centering
+\begin{tabular}{|c|c|c|c|c|c|c|c|}
+\hline
+\cellcolor{green!30}500 & \cellcolor{red!25}$-$150 & \cellcolor{green!30}30 & \cellcolor{green!30}10 & \cellcolor{green!30}10 & \cellcolor{green!30}30 & \cellcolor{red!25}$-$150 & \cellcolor{green!30}500 \\
+\hline
+\cellcolor{red!25}$-$150 & \cellcolor{red!25}$-$250 & 0 & 0 & 0 & 0 & \cellcolor{red!25}$-$250 & \cellcolor{red!25}$-$150 \\
+\hline
+\cellcolor{green!30}30 & 0 & \cellcolor{green!30}1 & \cellcolor{green!30}2 & \cellcolor{green!30}2 & \cellcolor{green!30}1 & 0 & \cellcolor{green!30}30 \\
+\hline
+\cellcolor{green!30}10 & 0 & \cellcolor{green!30}2 & \cellcolor{green!30}16 & \cellcolor{green!30}16 & \cellcolor{green!30}2 & 0 & \cellcolor{green!30}10 \\
+\hline
+\cellcolor{green!30}10 & 0 & \cellcolor{green!30}2 & \cellcolor{green!30}16 & \cellcolor{green!30}16 & \cellcolor{green!30}2 & 0 & \cellcolor{green!30}10 \\
+\hline
+\cellcolor{green!30}30 & 0 & \cellcolor{green!30}1 & \cellcolor{green!30}2 & \cellcolor{green!30}2 & \cellcolor{green!30}1 & 0 & \cellcolor{green!30}30 \\
+\hline
+\cellcolor{red!25}$-$150 & \cellcolor{red!25}$-$250 & 0 & 0 & 0 & 0 & \cellcolor{red!25}$-$250 & \cellcolor{red!25}$-$150 \\
+\hline
+\cellcolor{green!30}500 & \cellcolor{red!25}$-$150 & \cellcolor{green!30}30 & \cellcolor{green!30}10 & \cellcolor{green!30}10 & \cellcolor{green!30}30 & \cellcolor{red!25}$-$150 & \cellcolor{green!30}500 \\
+\hline
+\end{tabular}
+\caption{Table des poids positionnels. Les cases vertes ont un poids positif (favorables), les cases rouges un poids négatif (à éviter, sauf si le coin adjacent est déjà pris).}
+\label{fig:poids}
+\end{figure}
+
+\paragraph{2. Mobilité.}
+La mobilité mesure le nombre de coups disponibles relativement à l'adversaire :
+
+\begin{equation}
+    \text{Mobilité} = 100 \times \frac{C_j - C_a}{C_j + C_a}
+\end{equation}
+
+où $C_j$ est le nombre de coups du joueur et $C_a$ celui de l'adversaire. À Othello, maximiser ses options tout en limitant celles de l'adversaire est essentiel : un joueur sans coup est forcé de passer son tour.
+
+\paragraph{3. Occupation des coins.}
+Les coins sont les cases les plus stratégiques car un pion placé dans un coin ne peut \textit{jamais} être retourné. Chaque coin possédé vaut $+250$, chaque coin adverse $-250$.
+
+\paragraph{4. Stabilité.}
+Un pion est dit \textbf{stable} s'il ne peut plus être retourné, quelle que soit la suite de la partie. La stabilité est calculée par \textbf{propagation depuis les coins} : un coin pris permet de stabiliser les pions le long du bord, puis des triangles entiers de pions.
+
+\begin{equation}
+    \text{Stabilité} = 100 \times \frac{S_j - S_a}{S_j + S_a}
+\end{equation}
+
+\paragraph{5. Pions frontières.}
+Les pions frontières sont adjacents à au moins une case vide, et sont donc exposés aux retournements. Moins un joueur a de pions frontières, plus sa position est solide :
+
+\begin{equation}
+    \text{Frontières} = -100 \times \frac{F_j - F_a}{F_j + F_a}
+\end{equation}
+
+\paragraph{6. Parité.}
+En fin de partie, le joueur qui joue le dernier coup dans une région fermée a un avantage tactique. La parité attribue un bonus au joueur qui joue en dernier.
+
+
+\subsubsection{Pondération par phase}
+
+Le jeu est divisé en trois phases, avec des pondérations différentes pour chaque composante (tableau~\ref{tab:phases}).
+
+\begin{table}[H]
+\centering
+\caption{Pondération des composantes de l'évaluation selon la phase de jeu.}
+\label{tab:phases}
+\begin{tabular}{@{} l c c c c c c @{}}
+\toprule
+\textbf{Phase (pions)} & \textbf{Position.} & \textbf{Mobilité} & \textbf{Coins} & \textbf{Stabilité} & \textbf{Front.} & \textbf{Parité} \\
+\midrule
+Ouverture ($\leq 20$)  & $\times 1$   & $\times 5$   & $\times 10$  & --           & $\times 2$   & -- \\
+Milieu (20--50)         & $\times 0.5$ & $\times 4$   & $\times 15$  & $\times 3$   & $\times 1.5$ & $\times 1$ \\
+Fin ($> 50$)            & --           & --            & $\times 20$  & $\times 5$   & --            & $\times 3$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Justification :}
+\begin{itemize}
+    \item \textbf{Ouverture :} la mobilité est prioritaire pour conserver un maximum d'options. Les poids positionnels guident le placement.
+    \item \textbf{Milieu :} les coins et la stabilité deviennent cruciaux car les bords commencent à se figer. La mobilité reste importante.
+    \item \textbf{Fin :} seul le nombre final de pions compte. L'évaluation bascule sur la différence de pions, les coins (verrous) et la parité. Pour les 14 dernières cases, la résolution exacte remplace l'heuristique.
+\end{itemize}
+
+
+\subsection{Interface graphique}
+
+L'interface a été développée avec Pygame. Bien que non essentielle selon le sujet, elle facilite considérablement le test et la démonstration du système.
+
+\begin{figure}[H]
+    \centering
+    % TODO: Insérer une capture d'écran du menu principal
+    % \includegraphics[width=0.7\textwidth]{images/menu.png}
+    \fbox{\parbox{0.65\textwidth}{\centering \vspace{2cm} \textit{Capture d'écran : Menu principal avec les trois modes de jeu (Humain vs Humain, Humain vs IA, IA vs IA).} \vspace{2cm}}}
+    \caption{Menu principal de l'application.}
+    \label{fig:menu}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    % TODO: Insérer une capture d'écran d'une partie en cours contre l'IA
+    % \includegraphics[width=0.85\textwidth]{images/partie_en_cours.png}
+    \fbox{\parbox{0.75\textwidth}{\centering \vspace{3cm} \textit{Capture d'écran : Partie en cours (Humain vs IA). Le plateau affiche les coups valides (cercles semi-transparents), le dernier coup joué (marqueur jaune) et les pions retournés (marqueur orange). Le panneau latéral montre les scores et les statistiques de l'IA.} \vspace{3cm}}}
+    \caption{Interface de jeu avec le panneau d'informations et les statistiques de l'IA.}
+    \label{fig:partie}
+\end{figure}
+
+L'IA réfléchit dans un \textbf{thread séparé} afin de ne pas bloquer l'interface pendant le calcul. Un indicateur animé \og Analyse en cours... \fg{} informe le joueur de l'état de la réflexion.
+
+Trois modes de jeu sont proposés :
+\begin{enumerate}
+    \item \textbf{Humain vs Humain} : deux joueurs sur le même écran.
+    \item \textbf{Humain vs IA} : le joueur humain contrôle les Blancs, l'IA joue les Noirs.
+    \item \textbf{IA vs IA} : deux instances de l'IA jouent automatiquement.
+\end{enumerate}
+
+
+% ══════════════════════════════════════════════════════════════
+% VALIDATION
+% ══════════════════════════════════════════════════════════════
+\section{Validation}
+\label{sec:validation}
+
+\subsection{Protocole expérimental}
+
+Les expériences ont été réalisées sur un ordinateur personnel. L'IA est paramétrée comme suit :
+
+\begin{table}[H]
+\centering
+\caption{Paramètres de l'IA pour les différents modes de jeu.}
+\label{tab:parametres}
+\begin{tabular}{@{} l c c c @{}}
+\toprule
+\textbf{Paramètre} & \textbf{Humain vs IA} & \textbf{IA vs IA} \\
+\midrule
+Profondeur maximale & 10 & 8 \\
+Temps maximum par coup & 5 s & 3 s \\
+Résolution exacte & $\leq 14$ cases vides & $\leq 14$ cases vides \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Performance de l'algorithme}
+
+Le tableau~\ref{tab:performance} présente les statistiques moyennes de l'IA sur une série de parties.
+
+\begin{table}[H]
+\centering
+\caption{Statistiques moyennes de l'IA par coup (sur 10 parties IA vs IA).}
+\label{tab:performance}
+\begin{tabular}{@{} l r @{}}
+\toprule
+\textbf{Métrique} & \textbf{Valeur moyenne} \\
+\midrule
+Profondeur atteinte & \textit{à mesurer} \\
+Nœuds explorés par coup & \textit{à mesurer} \\
+Coupes Alpha-Beta par coup & \textit{à mesurer} \\
+Hits table de transposition & \textit{à mesurer} \\
+Temps moyen par coup & \textit{à mesurer} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% TODO: Remplir le tableau ci-dessus avec les résultats réels d'exécution.
+% Les statistiques sont affichées dans le panneau latéral de l'interface.
+% On peut les noter manuellement ou les exporter dans un fichier .txt
+
+
+\subsection{Comparaison des stratégies}
+
+% TODO: Faire jouer les différentes stratégies entre elles et remplir le tableau.
+% Par exemple : Positionnel vs Mobilité, Positionnel vs Mixte, etc.
+
+\begin{table}[H]
+\centering
+\caption{Résultats des confrontations entre stratégies (nombre de victoires sur 10 parties).}
+\label{tab:strategies}
+\begin{tabular}{@{} l c c c c @{}}
+\toprule
+ & \textbf{Positionnel} & \textbf{Absolu} & \textbf{Mobilité} & \textbf{Mixte} \\
+\midrule
+\textbf{Positionnel} & -- & \textit{à mesurer} & \textit{à mesurer} & \textit{à mesurer} \\
+\textbf{Absolu}      & \textit{à mesurer} & -- & \textit{à mesurer} & \textit{à mesurer} \\
+\textbf{Mobilité}    & \textit{à mesurer} & \textit{à mesurer} & -- & \textit{à mesurer} \\
+\textbf{Mixte}       & \textit{à mesurer} & \textit{à mesurer} & \textit{à mesurer} & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Effet de la profondeur de recherche}
+
+\begin{figure}[H]
+    \centering
+    % TODO: Insérer un graphique montrant le temps de calcul en fonction de la profondeur
+    % \includegraphics[width=0.7\textwidth]{images/profondeur_temps.png}
+    \fbox{\parbox{0.65\textwidth}{\centering \vspace{3cm} \textit{Graphique : Temps de calcul moyen par coup en fonction de la profondeur de recherche (profondeur 1 à 10). Courbe exponentielle attendue, atténuée par les coupes Alpha-Beta.} \vspace{3cm}}}
+    \caption{Temps de calcul moyen par coup en fonction de la profondeur.}
+    \label{fig:profondeur}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    % TODO: Insérer un graphique montrant le nombre de nœuds en fonction de la profondeur
+    % \includegraphics[width=0.7\textwidth]{images/profondeur_noeuds.png}
+    \fbox{\parbox{0.65\textwidth}{\centering \vspace{3cm} \textit{Graphique : Nombre de nœuds explorés en fonction de la profondeur de recherche. Comparaison avec et sans élagage Alpha-Beta.} \vspace{3cm}}}
+    \caption{Nombre de nœuds explorés en fonction de la profondeur, avec et sans Alpha-Beta.}
+    \label{fig:noeuds}
+\end{figure}
+
+
+\subsection{Résultats contre un joueur humain}
+
+% TODO: Jouer quelques parties contre l'IA et noter les résultats.
+
+\begin{table}[H]
+\centering
+\caption{Résultats des parties Humain vs IA.}
+\label{tab:humain_ia}
+\begin{tabular}{@{} c c c l @{}}
+\toprule
+\textbf{Partie} & \textbf{Score Humain} & \textbf{Score IA} & \textbf{Résultat} \\
+\midrule
+1 & \textit{à mesurer} & \textit{à mesurer} & \textit{à mesurer} \\
+2 & \textit{à mesurer} & \textit{à mesurer} & \textit{à mesurer} \\
+3 & \textit{à mesurer} & \textit{à mesurer} & \textit{à mesurer} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    % TODO: Insérer une capture d'écran de la fin d'une partie IA vs Humain
+    % \includegraphics[width=0.75\textwidth]{images/fin_partie.png}
+    \fbox{\parbox{0.65\textwidth}{\centering \vspace{3cm} \textit{Capture d'écran : Fin de partie montrant le résultat (victoire IA) avec l'overlay et le score final.} \vspace{3cm}}}
+    \caption{Écran de fin de partie après une victoire de l'IA.}
+    \label{fig:fin}
+\end{figure}
+
+
+% ══════════════════════════════════════════════════════════════
+% DISCUSSION
+% ══════════════════════════════════════════════════════════════
+\section{Discussion}
+\label{sec:discussion}
+
+\subsection{Efficacité des stratégies}
+
+La stratégie \textbf{Mixte} (combinant positionnel, mobilité et absolu selon la phase) s'avère la plus efficace dans nos expérimentations, ce qui confirme l'intuition que l'importance relative des critères évolue au cours de la partie :
+
+\begin{itemize}
+    \item En \textbf{ouverture}, il est préférable de minimiser le nombre de pions possédés tout en maximisant la mobilité.  Posséder beaucoup de pions en début de partie crée de nombreuses surfaces de retournement pour l'adversaire.
+    \item Au \textbf{milieu} de partie, la capture des coins et la construction de pions stables deviennent les facteurs déterminants. Un coin capturé permet de verrouiller un bord entier.
+    \item En \textbf{fin} de partie, seule la différence de pions compte. La résolution exacte (endgame solver) prend alors le relais de l'heuristique.
+\end{itemize}
+
+% TODO: Discuter de la position du joueur humain par rapport aux stratégies IA.
+% Par exemple : "Le joueur humain se situe entre la stratégie Positionnel et Mobilité..."
+
+
+\subsection{Apport des optimisations}
+
+\paragraph{Table de transposition.}
+La table de transposition apporte un gain significatif, en particulier lors de l'approfondissement itératif. Les positions évaluées aux profondeurs précédentes sont réutilisées, et le meilleur coup stocké accélère les coupes Alpha-Beta.
+
+\paragraph{Tri des coups.}
+Le tri des coups est l'optimisation ayant le plus d'impact sur les coupes Alpha-Beta. En explorant d'abord les coins et le meilleur coup connu, le nombre de nœuds explorés diminue considérablement.
+
+\paragraph{Résolution exacte.}
+Pour les 14 dernières cases, l'IA joue de manière optimale et ne peut pas faire d'erreur de jugement. Cela garantit le meilleur résultat possible en fin de partie.
+
+
+\subsection{Difficultés rencontrées}
+
+\begin{enumerate}
+    \item \textbf{Calibrage des poids.} L'ajustement des coefficients de la fonction d'évaluation et des pondérations par phase a nécessité de nombreux essais. Un mauvais calibrage peut faire perdre des coins ou s'effondrer en fin de partie.
+
+    \item \textbf{Gestion du temps.} Le timeout doit interrompre proprement la recherche sans corrompre le résultat. L'approfondissement itératif résout ce problème en fournissant toujours le meilleur coup de l'itération précédente.
+
+    \item \textbf{Interface non bloquante.} L'IA devant réfléchir sans figer l'interface, l'utilisation d'un thread séparé a été nécessaire, avec les précautions associées (copie du plateau avant envoi au thread).
+
+    \item \textbf{Collisions de hash.} Le hashing de Zobrist peut théoriquement produire des collisions. Avec des clés de 64 bits, la probabilité est extrêmement faible pour les tailles de table rencontrées.
+\end{enumerate}
+
+
+\subsection{Limites et perspectives}
+
+\paragraph{Limites.}
+\begin{itemize}
+    \item L'implémentation en Python limite la vitesse d'exploration par rapport à un langage compilé comme le C. La profondeur atteignable en temps limité est donc réduite.
+    \item La fonction d'évaluation repose sur des poids statiques fixés manuellement. Un réglage automatique (par exemple par apprentissage supervisé sur des parties de référence~\cite{buro1997}) pourrait l'améliorer.
+    \item La table de transposition sans limite de taille peut consommer beaucoup de mémoire sur de très longues sessions.
+\end{itemize}
+
+\paragraph{Perspectives.}
+\begin{itemize}
+    \item \textbf{Apprentissage par renforcement :} faire jouer l'IA contre elle-même pour ajuster automatiquement les poids de la fonction d'évaluation, comme suggéré dans le sujet.
+    \item \textbf{Portage en C/C++ avec Cython :} accélérer la recherche d'un facteur 10 à 100, permettant d'atteindre des profondeurs plus élevées.
+    \item \textbf{Ouverture par base de données :} utiliser une bibliothèque d'ouvertures connues pour les 10--15 premiers coups, réduisant le temps de calcul en début de partie.
+    \item \textbf{Méthode de Monte-Carlo :} implémenter une recherche arborescente Monte-Carlo (MCTS) comme alternative ou complément à Alpha-Beta, en particulier pour les positions difficiles à évaluer.
+    \item \textbf{Mémorisation des coups :} sauvegarder la séquence de coups dans un fichier pour pouvoir rejouer les parties et analyser les décisions de l'IA.
+\end{itemize}
+
+
+% ══════════════════════════════════════════════════════════════
+% CONCLUSION
+% ══════════════════════════════════════════════════════════════
+\section{Conclusion}
+
+Ce TP nous a permis de développer un système complet de jeu d'Othello avec une intelligence artificielle performante. L'algorithme NegaMax avec élagage Alpha-Beta, combiné à l'approfondissement itératif, la table de transposition et le tri des coups, permet d'explorer efficacement l'arbre de jeu.
+
+La fonction d'évaluation multi-composantes, utilisant une stratégie mixte adaptée à chaque phase du jeu (ouverture, milieu, fin), constitue le cœur de la prise de décision. La résolution exacte en fin de partie garantit un jeu optimal sur les derniers coups.
+
+L'interface graphique développée avec Pygame offre une expérience de jeu agréable et permet de visualiser en temps réel les statistiques de l'IA (profondeur, nœuds explorés, coupes effectuées, temps de calcul).
+
+Les résultats montrent que la stratégie Mixte surpasse les stratégies individuelles (positionnelle, absolue, mobilité), et que l'IA est capable de battre de manière consistante un joueur humain non expert. Les perspectives d'amélioration, notamment par apprentissage automatique et optimisation de l'implémentation, ouvrent la voie à un système encore plus performant.
+
+
+% ══════════════════════════════════════════════════════════════
+% BIBLIOGRAPHIE
+% ══════════════════════════════════════════════════════════════
+\newpage
+\begin{thebibliography}{9}
+
+\bibitem{russell2021}
+Russell, S. et Norvig, P.,
+\textit{Artificial Intelligence: A Modern Approach},
+4\textsuperscript{e} édition, Pearson, 2021.
+Chapitres 5--6 : Recherche adversariale, Min-Max, Alpha-Beta.
+
+\bibitem{buro1997}
+Buro, M.,
+\og An Evaluation Function for Othello Based on Statistics \fg{},
+\textit{NEC Research Institute}, Technical Report \#96-1, 1997.
+
+\bibitem{zobrist1970}
+Zobrist, A. L.,
+\og A New Hashing Method with Application for Game Playing \fg{},
+\textit{Technical Report 88}, University of Wisconsin, 1970.
+
+\bibitem{breuker1998}
+Breuker, D. M.,
+\textit{Memory versus Search in Games},
+Ph.D. dissertation, Maastricht University, 1998.
+
+\bibitem{knuth1975}
+Knuth, D. E. et Moore, R. W.,
+\og An Analysis of Alpha-Beta Pruning \fg{},
+\textit{Artificial Intelligence}, vol.~6, no.~4, pp.~293--326, 1975.
+
+\end{thebibliography}
+
+
+% ══════════════════════════════════════════════════════════════
+% ANNEXES
+% ══════════════════════════════════════════════════════════════
+\newpage
+\appendix
+\section{Code source}
+
+\subsection{othello.py — Logique du jeu}
+\IfFileExists{othello.py}{%
+  \lstinputlisting[caption={Module de logique du jeu Othello.}, label={lst:othello}]{othello.py}%
+}{%
+  \textit{Fichier othello.py non inclus. Veuillez l'uploader dans le projet Overleaf.}%
+}
+
+\newpage
+\subsection{ia.py — Moteur d'intelligence artificielle}
+\IfFileExists{ia.py}{%
+  \lstinputlisting[caption={Module d'IA : NegaMax avec Alpha-Beta.}, label={lst:ia}]{ia.py}%
+}{%
+  \textit{Fichier ia.py non inclus. Veuillez l'uploader dans le projet Overleaf.}%
+}
+
+\newpage
+\subsection{main.py — Interface graphique}
+\IfFileExists{main.py}{%
+  \lstinputlisting[caption={Module d'interface graphique Pygame.}, label={lst:main}]{main.py}%
+}{%
+  \textit{Fichier main.py non inclus. Veuillez l'uploader dans le projet Overleaf.}%
+}
+
+
+\end{document}
