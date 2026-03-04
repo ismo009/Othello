@@ -1,0 +1,570 @@
+================================================================================
+         EXPLICATION COMPLÈTE DU CODE — PROJET OTHELLO (REVERSI)
+================================================================================
+
+Ce projet implémente le jeu Othello (Reversi) en Python avec :
+  - La logique du jeu (othello.py)
+  - Un moteur d'intelligence artificielle (ia.py)
+  - Une interface graphique Pygame (main.py)
+  - Un benchmark pour comparer les stratégies IA (benchmark.py)
+
+================================================================================
+  COMMENT EXÉCUTER LE PROJET
+================================================================================
+
+  1. Lancer le jeu (interface graphique) :
+       python main.py
+
+     → Ouvre une fenêtre Pygame avec un menu proposant 3 modes :
+       - Humain vs Humain
+       - Humain vs IA (avec choix de stratégie)
+       - IA vs IA (avec choix de stratégie pour chaque IA)
+
+  2. Lancer le benchmark (terminal uniquement) :
+       python benchmark.py
+
+     → Fait jouer les 4 stratégies IA les unes contre les autres
+       et affiche un tableau de résultats dans la console.
+
+
+================================================================================
+  FICHIER : othello.py — LOGIQUE DU JEU
+================================================================================
+
+Ce fichier contient toutes les règles du jeu Othello. Il ne gère aucun
+affichage graphique, uniquement la mécanique du plateau et des coups.
+
+CONSTANTES
+----------
+  TAILLE = 8         Taille du plateau (8x8).
+  VIDE = 0           Case vide.
+  NOIR = 1           Pion noir.
+  BLANC = 2          Pion blanc.
+  DIRECTIONS         Les 8 directions (haut, bas, gauche, droite, diagonales)
+                     utilisées pour vérifier les retournements de pions.
+
+FONCTIONS
+---------
+
+  adversaire(joueur)
+      Retourne l'adversaire du joueur donné.
+      Si joueur == NOIR → retourne BLANC, et inversement.
+
+  creer_plateau()
+      Crée un plateau 8x8 rempli de VIDE, puis place les 4 pions initiaux
+      au centre (2 blancs et 2 noirs en diagonale).
+      Retourne le plateau (liste de listes).
+
+  copier_plateau(plateau)
+      Retourne une copie indépendante du plateau (deep copy des lignes).
+      Utilisée pour simuler des coups sans modifier l'original.
+
+  est_sur_plateau(ligne, colonne)
+      Vérifie que les coordonnées (ligne, colonne) sont dans les limites
+      [0, 7] du plateau. Retourne True ou False.
+
+  pions_a_retourner(plateau, ligne, colonne, joueur)
+      Fonction centrale du jeu. Pour un coup donné à (ligne, colonne) :
+        1. Vérifie que la case est vide.
+        2. Pour chacune des 8 directions, avance tant qu'on trouve des pions
+           adverses.
+        3. Si on termine sur un pion du joueur, tous les pions adverses
+           traversés sont ajoutés à la liste des retournements.
+      Retourne la liste des positions (l, c) à retourner.
+      Liste vide = coup invalide.
+
+  est_coup_valide(plateau, ligne, colonne, joueur)
+      Retourne True si le coup à (ligne, colonne) est valide pour le joueur,
+      c'est-à-dire s'il retourne au moins un pion adverse.
+
+  coups_valides(plateau, joueur)
+      Parcourt toutes les cases du plateau et retourne la liste de tous
+      les coups valides (l, c) pour le joueur.
+
+  jouer_coup(plateau, ligne, colonne, joueur)
+      Joue un coup :
+        1. Calcule les pions à retourner.
+        2. Crée une copie du plateau.
+        3. Place le pion du joueur et retourne les pions adverses.
+      Retourne (nouveau_plateau, liste_pions_retournés) ou (None, []) si
+      le coup est invalide.
+
+  compter_pions(plateau)
+      Compte le nombre de pions noirs et blancs sur le plateau.
+      Retourne (noirs, blancs).
+
+  est_partie_finie(plateau)
+      La partie est finie quand ni NOIR ni BLANC n'ont de coup valide.
+      Retourne True ou False.
+
+  gagnant(plateau)
+      Compare le nombre de pions. Retourne NOIR, BLANC ou VIDE (nul).
+
+  afficher_plateau_console(plateau, joueur_actuel)
+      Affiche le plateau en mode texte dans la console (pour le debug).
+      Utilise '.' pour vide, 'N' pour noir, 'B' pour blanc.
+
+
+================================================================================
+  FICHIER : ia.py — MOTEUR D'INTELLIGENCE ARTIFICIELLE
+================================================================================
+
+Ce fichier implémente un moteur IA avancé utilisant plusieurs techniques
+classiques de recherche en arbre de jeu.
+
+CONSTANTES
+----------
+  INF = 1_000_000         Valeur "infini" pour l'algorithme minimax.
+  STRAT_POSITIONNEL        Stratégie basée sur les poids de position.
+  STRAT_ABSOLU             Stratégie gloutonne (maximiser le nb de pions).
+  STRAT_MOBILITE           Stratégie basée sur la mobilité.
+  STRAT_MIXTE              Stratégie combinant toutes les heuristiques.
+
+  POIDS_POSITION           Tableau 8x8 de poids statiques. Les coins valent
+                           +500 (très bons), les cases X/C adjacentes aux
+                           coins valent -150/-250 (dangereuses).
+  COINS                    Les 4 coins : (0,0), (0,7), (7,0), (7,7).
+  CASES_X                  Les 4 cases diagonalement adjacentes aux coins.
+  CASES_C                  Les 8 cases sur le bord adjacentes aux coins.
+  COIN_ADJACENTES          Dictionnaire coin → [cases X et C associées].
+
+TABLE DE TRANSPOSITION (ZOBRIST HASHING)
+----------------------------------------
+
+  _zobrist_table           Tableau 8x8x3 de nombres aléatoires 64 bits,
+                           un par (case, couleur). Sert à calculer un hash
+                           unique pour chaque configuration du plateau.
+  _zobrist_joueur          Nombre aléatoire XOR-é quand c'est au tour de BLANC.
+
+  zobrist_hash(plateau, joueur)
+      Calcule le hash Zobrist du plateau en XOR-ant les valeurs de chaque
+      pion présent. Le hash permet de reconnaître les positions déjà
+      évaluées (table de transposition) sans recomparer tout le plateau.
+
+FONCTIONS UTILITAIRES RAPIDES
+------------------------------
+
+  jouer_coup_rapide(plateau, ligne, col, joueur)
+      Version optimisée de jouer_coup qui modifie le plateau EN PLACE
+      (pas de copie). Retourne la liste des pions retournés pour pouvoir
+      annuler le coup ensuite. Retourne None si le coup est invalide.
+
+  annuler_coup(plateau, ligne, col, joueur, pions_retournes)
+      Annule un coup joué avec jouer_coup_rapide : remet la case à VIDE
+      et remet les pions retournés à la couleur adverse.
+      Permet d'explorer l'arbre de jeu sans créer de copies de plateau.
+
+  coups_valides_rapide(plateau, joueur)
+      Version optimisée de coups_valides. Parcourt toutes les cases vides
+      et vérifie dans les 8 directions. S'arrête dès qu'une direction valide
+      est trouvée (break anticipé).
+
+  compter_cases_vides(plateau)
+      Compte le nombre de cases vides sur le plateau. Utilisé pour
+      déterminer la phase de jeu et déclencher la résolution exacte.
+
+FONCTIONS D'ÉVALUATION
+-----------------------
+Chaque fonction retourne un score du point de vue du joueur donné.
+Score positif = avantage pour le joueur. Score négatif = désavantage.
+
+  eval_positionnelle(plateau, joueur)
+      Somme les poids de POIDS_POSITION pour chaque pion du joueur,
+      et soustrait ceux de l'adversaire. Ajuste dynamiquement : si un
+      coin est pris par le joueur, les cases X/C adjacentes ne sont plus
+      pénalisées.
+
+  eval_mobilite(plateau, joueur)
+      Compare le nombre de coups disponibles du joueur vs l'adversaire.
+      Formule : 100 * (coups_joueur - coups_adv) / (coups_joueur + coups_adv).
+      Plus de mobilité = plus de choix = meilleure position.
+
+  eval_coins(plateau, joueur)
+      Compte les coins possédés par le joueur (+1) et par l'adversaire (-1).
+      Multiplie par 250. Les coins sont les cases les plus importantes car
+      ils ne peuvent jamais être retournés.
+
+  eval_stabilite(plateau, joueur)
+      Évalue les pions "stables" (impossibles à retourner) en propageant
+      depuis les coins. Un pion dans un coin est toujours stable. Les pions
+      alignés sur un bord depuis un coin stable sont aussi stables.
+      Formule : 100 * (stable_joueur - stable_adv) / (total_stables).
+
+  _compter_pions_stables(plateau, joueur)
+      Fonction interne. Propage la stabilité depuis chaque coin possédé
+      par le joueur le long des bords et en triangle.
+      Retourne le nombre de pions stables.
+
+  eval_frontieres(plateau, joueur)
+      Compte les pions "frontières" (adjacents à au moins une case vide).
+      Moins de pions frontières = moins exposé aux retournements.
+      Le score est inversé : moins de frontières = meilleur score.
+
+  eval_parite(plateau, joueur)
+      Évalue la parité (nombre pair/impair de cases vides). En Othello,
+      le joueur qui joue le dernier coup a un avantage.
+
+  evaluation(plateau, joueur)   [STRATÉGIE MIXTE — la plus forte]
+      Fonction d'évaluation principale qui adapte ses poids selon la phase :
+        - Ouverture (≤20 pions) : positionnel + mobilité + coins + frontières.
+        - Milieu (20-50 pions) : mobilité + coins + stabilité + frontières + parité.
+        - Fin (>50 pions) : différence de pions + coins + stabilité + parité.
+      En fin de partie totale, retourne ±INF pour victoire/défaite.
+
+  evaluation_positionnelle_strat(plateau, joueur)
+      Stratégie positionnelle pure. Poids prédominant aux poids statiques
+      de POIDS_POSITION et aux coins. Moins de composantes que la mixte.
+
+  evaluation_absolue_strat(plateau, joueur)
+      Stratégie absolue/gloutonne. Privilégie la différence brute de pions
+      (matériel). Ajoute un bonus pour les coins.
+      Simple mais souvent sous-optimale au milieu de partie.
+
+  evaluation_mobilite_strat(plateau, joueur)
+      Stratégie mobilité. Maximise le nombre de coups du joueur et minimise
+      les pions frontières. Adapte les poids selon la phase de jeu.
+
+  FONCTIONS_EVALUATION
+      Dictionnaire associant chaque nom de stratégie à sa fonction
+      d'évaluation. Utilisé par la classe IAOthello.
+
+TRI DES COUPS (MOVE ORDERING)
+------------------------------
+
+  _PRIORITE_COUP           Tableau 8x8 de priorités (0 = meilleur, 6 = pire).
+                           Les coins ont la priorité 0, les cases X ont 5-6.
+
+  trier_coups(coups, plateau, joueur, tt_best_move)
+      Trie les coups par priorité croissante (meilleurs en premier).
+      Si un meilleur coup est connu depuis la table de transposition,
+      il est placé en tout premier (priorité -1).
+      Le tri améliore l'efficacité de l'élagage alpha-beta.
+
+ALGORITHME NEGAMAX AVEC ALPHA-BETA
+------------------------------------
+
+  Types dans la table de transposition :
+    TT_EXACT = 0   Score exact.
+    TT_ALPHA = 1   Borne supérieure (le score réel est ≤ cette valeur).
+    TT_BETA  = 2   Borne inférieure (le score réel est ≥ cette valeur).
+
+CLASSE IAOthello
+-----------------
+
+  __init__(self, couleur, profondeur_max, temps_max, strategie)
+      Initialise l'IA avec :
+        - couleur : NOIR ou BLANC
+        - profondeur_max : profondeur maximale de l'arbre de recherche
+        - temps_max : temps de réflexion maximum par coup (en secondes)
+        - strategie : quelle fonction d'évaluation utiliser
+      Crée une table de transposition vide et les compteurs de stats.
+
+  reinitialiser_stats(self)
+      Remet tous les compteurs à zéro (nœuds, coupes, hits TT, etc.).
+
+  choisir_coup(self, plateau)
+      Méthode principale appelée pour obtenir le meilleur coup.
+      Algorithme :
+        1. Liste les coups valides. Si un seul coup, le joue directement.
+        2. Si ≤14 cases vides : active la résolution exacte (profondeur = vides).
+        3. Approfondissement itératif : cherche à profondeur 1, puis 2, etc.
+           jusqu'à profondeur_limite ou timeout.
+        4. À chaque profondeur, trie les coups (meilleur de l'itération
+           précédente en premier) et lance NegaMax sur chaque coup.
+        5. Si un score gagnant certain est trouvé (≥ INF-200), arrête.
+      Retourne le meilleur coup (ligne, col) ou None.
+
+  _negamax(self, plateau, joueur, profondeur, alpha, beta)
+      Cœur de l'algorithme de recherche. NegaMax est une variante de Minimax
+      où le score est toujours du point de vue du joueur courant.
+      Algorithme :
+        1. Vérifie le timeout.
+        2. Consulte la table de transposition (hash Zobrist).
+           Si la position a déjà été évaluée à une profondeur suffisante,
+           utilise le score stocké.
+        3. Si profondeur == 0 : évalue la position et la stocke dans la TT.
+        4. Liste les coups valides. Si aucun :
+           - Si l'adversaire non plus n'a pas de coup → fin de partie → évaluer.
+           - Sinon → passer le tour (appel récursif avec adversaire).
+        5. Trie les coups (move ordering) pour maximiser les coupes.
+        6. Pour chaque coup :
+           a. Joue le coup en place (jouer_coup_rapide).
+           b. Appelle récursivement _negamax pour l'adversaire.
+           c. Annule le coup (annuler_coup).
+           d. Met à jour alpha. Si alpha >= beta → coupe (élagage alpha-beta).
+        7. Stocke le résultat dans la table de transposition.
+      Retourne le meilleur score trouvé.
+
+  obtenir_stats(self)
+      Retourne un dictionnaire copié des statistiques de la dernière
+      recherche : nœuds explorés, coupes AB, hits TT, profondeur, temps.
+
+
+================================================================================
+  FICHIER : main.py — INTERFACE GRAPHIQUE PYGAME
+================================================================================
+
+Ce fichier gère l'affichage graphique et l'interaction utilisateur.
+Il importe othello.py pour la logique et ia.py pour l'IA.
+
+CONSTANTES GRAPHIQUES
+---------------------
+  Couleurs (tuples RGB/RGBA) pour le plateau, les pions, le panneau, etc.
+  Dimensions : TAILLE_CASE=70px, MARGE_PLATEAU=30px, LARGEUR_PANNEAU=220px.
+  LARGEUR_FENETRE et HAUTEUR_FENETRE calculées automatiquement.
+  FPS = 60.
+
+CLASSE AnimationPion
+--------------------
+  Gère l'animation visuelle du retournement d'un pion.
+
+  __init__(self, ligne, col, couleur_depart, couleur_fin, duree)
+      Enregistre la position, les couleurs et le temps de début.
+
+  progression(self)
+      Retourne un float entre 0.0 et 1.0 indiquant l'avancement.
+      Met self.termine = True quand l'animation est finie.
+
+  rayon_courant(self, rayon_max)
+      Simule un retournement 3D : le rayon diminue (0 → 0.5) puis
+      augmente (0.5 → 1.0), donnant l'illusion que le pion se retourne.
+
+  couleur_courante(self)
+      Retourne couleur_depart pour la 1ère moitié de l'animation,
+      couleur_fin pour la 2ème moitié.
+
+CLASSE JeuOthelloGUI
+--------------------
+  Classe principale qui gère tout le jeu graphique.
+
+  Modes de jeu :
+    MODE_MENU = 0   Menu principal.
+    MODE_HVH = 1    Humain vs Humain.
+    MODE_HVA = 2    Humain vs IA.
+    MODE_AVA = 3    IA vs IA.
+
+  __init__(self)
+      Initialise Pygame, crée la fenêtre, charge les polices.
+      Définit l'état initial : mode menu, pas d'IA, stratégies par défaut
+      (STRAT_MIXTE).
+
+  reinitialiser(self)
+      Remet le jeu à zéro : nouveau plateau, joueur BLANC commence,
+      vide l'historique, les animations, les messages. Recrée les IA
+      si le mode l'exige (HVA ou AVA) avec les stratégies choisies.
+
+  lancer_mode(self, mode)
+      Configure le mode de jeu et crée les objets IAOthello appropriés :
+        - HVA : 1 IA (profondeur 10, 5s max).
+        - AVA : 2 IA (profondeur 8, 3s max chacune).
+      Puis appelle reinitialiser().
+
+  pixel_vers_case(self, x, y)
+      Convertit les coordonnées pixel de la souris en coordonnées de
+      case (ligne, colonne) sur le plateau 8x8. Retourne (None, None)
+      si hors du plateau.
+
+  case_vers_pixel(self, ligne, col)
+      Convertit une case (ligne, col) en coordonnées pixel (centre de la case).
+
+  --- MÉTHODES DE DESSIN ---
+
+  dessiner_plateau(self)
+      Dessine le fond vert, la grille (lignes horizontales et verticales),
+      et les 4 petits points repères comme sur un vrai plateau d'Othello.
+
+  dessiner_coups_valides(self)
+      Dessine de petits cercles semi-transparents sur chaque case où le
+      joueur humain peut jouer. Ne s'affiche pas pendant le tour de l'IA
+      ni en mode IA vs IA.
+
+  dessiner_survol(self)
+      Quand la souris survole une case valide : surligne la case en jaune
+      et affiche un pion fantôme semi-transparent pour prévisualiser le coup.
+
+  dessiner_pions(self)
+      Dessine chaque pion sur le plateau avec :
+        - Une ombre (cercle noir décalé).
+        - Le pion lui-même (noir ou blanc).
+        - Un reflet lumineux.
+        - Un marqueur jaune sur le dernier coup joué.
+        - Un marqueur orange sur les pions récemment retournés.
+      Les pions en cours d'animation sont ignorés (gérés séparément).
+
+  dessiner_animations(self)
+      Dessine les pions en cours d'animation de retournement.
+      Utilise une ellipse dont le rayon varie pour simuler la 3D.
+      Supprime les animations terminées de la liste.
+
+  dessiner_panneau_info(self)
+      Dessine le panneau d'information à droite du plateau :
+        - Titre "OTHELLO".
+        - Scores (blanc et noir) avec pions miniatures.
+        - Indicateur du joueur actuel (flèche ◄).
+        - Stratégie IA en cours.
+        - Animation "Analyse en cours..." quand l'IA réfléchit.
+        - Nombre de coups possibles.
+        - Numéro du tour.
+        - Statistiques du dernier coup IA (profondeur, nœuds, coupes, cache, temps).
+      En fin de partie, affiche le résultat.
+
+  dessiner_resultat(self, x_centre, y)
+      Affiche "Victoire Blanc/Noir" ou "Match Nul" avec le score final.
+
+  dessiner_bouton_nouvelle_partie(self, x_panneau)
+      Dessine deux boutons en bas du panneau :
+        - "Nouvelle Partie" : recommence avec les mêmes paramètres.
+        - "Menu" : retourne au menu principal.
+
+  dessiner_coordonnees(self)
+      Dessine les lettres A-H en haut et les chiffres 1-8 à gauche du plateau.
+
+  dessiner_ecran_fin(self)
+      Quand la partie est terminée, affiche un overlay sombre sur le plateau
+      avec le texte de victoire/nul en grand.
+
+  --- MENU ---
+
+  dessiner_menu(self)
+      Dessine l'écran du menu principal avec le titre "OTHELLO" et 3 boutons :
+        - Humain vs Humain → lance directement le mode.
+        - Humain vs IA → ouvre le sous-menu de choix de stratégie.
+        - IA vs IA → ouvre le sous-menu (choix stratégie Blanc, puis Noir).
+
+  _dessiner_sous_menu_strategie(self)
+      Dessine le sous-menu de sélection de stratégie avec 4 boutons colorés :
+        - Positionnelle (violet)
+        - Absolue (rouge)
+        - Mobilité (bleu)
+        - Mixte (vert)
+      Chaque bouton a un label et une description. Un bouton "← Retour" permet
+      de revenir en arrière.
+
+  gerer_clic_menu(self, x, y)
+      Gère les clics dans le menu et les sous-menus :
+        - Menu principal : ouvre le mode ou le sous-menu approprié.
+        - Sous-menu HVA : sélectionne la stratégie et lance le mode.
+        - Sous-menu AVA : sélectionne d'abord la stratégie Blanc, puis Noir.
+        - Bouton Retour : revient à l'étape précédente.
+
+  --- IA ---
+
+  est_tour_ia(self)
+      Retourne True si c'est le tour de l'IA (mode HVA et couleur IA,
+      ou mode AVA). False si partie finie ou animations en cours.
+
+  lancer_reflexion_ia(self)
+      Lance un thread séparé pour que l'IA calcule son coup.
+      Le thread copie le plateau, appelle ia.choisir_coup(), et stocke
+      le résultat dans self.ia_coup_pret.
+      L'utilisation d'un thread empêche l'interface de se figer.
+
+  appliquer_coup_ia(self)
+      Quand le thread IA a fini (ia_coup_pret != None), applique le coup
+      sur le plateau en appelant effectuer_coup().
+
+  --- LOGIQUE DE JEU ---
+
+  gerer_clic(self, x, y)
+      Gère un clic humain sur le plateau :
+        1. Vérifie les boutons (Nouvelle Partie, Menu).
+        2. Ignore si partie finie, animations en cours, ou tour de l'IA.
+        3. Convertit pixel → case. Vérifie que le coup est valide.
+        4. Appelle effectuer_coup().
+
+  effectuer_coup(self, ligne, col)
+      Exécute un coup (humain ou IA) :
+        1. Appelle jouer_coup() pour obtenir le nouveau plateau.
+        2. Sauvegarde dans l'historique.
+        3. Crée les animations de retournement (avec décalage temporel).
+        4. Met à jour le plateau, le dernier coup, les pions retournés.
+        5. Passe au joueur suivant.
+        6. Si le prochain joueur ne peut pas jouer :
+           - Partie finie ? → affiche le résultat.
+           - Sinon → passe le tour et affiche un message.
+
+  --- BOUCLE PRINCIPALE ---
+
+  executer(self)
+      Boucle infinie du jeu :
+        1. Traite les événements Pygame :
+           - QUIT → ferme le jeu.
+           - MOUSEBUTTONDOWN → gere_clic_menu() ou gerer_clic().
+           - MOUSEMOTION → met à jour la case survolée.
+           - KEYDOWN :
+               N → nouvelle partie.
+               M ou ESCAPE → retour au menu.
+               ESCAPE au menu → quitte.
+        2. Gère l'IA : applique le coup prêt, ou lance la réflexion.
+        3. Dessine l'écran : menu ou plateau + panneau info.
+        4. Actualise l'affichage à 60 FPS.
+
+  Point d'entrée :
+      if __name__ == "__main__":
+          jeu = JeuOthelloGUI()
+          jeu.executer()
+      → Crée une instance du jeu et lance la boucle principale.
+
+
+================================================================================
+  FICHIER : benchmark.py — COMPARAISON DES STRATÉGIES IA
+================================================================================
+
+Ce fichier fait jouer les 4 stratégies IA les unes contre les autres
+pour produire un tableau de résultats comparatif.
+
+FONCTION jouer_partie(strat_blanc, strat_noir, profondeur, temps_max, verbose)
+    Simule une partie complète entre deux IA sans interface graphique :
+      1. Crée un plateau initial et deux IAOthello (une pour Blanc, une pour Noir).
+      2. Boucle tant que la partie n'est pas finie :
+         - Liste les coups valides du joueur courant.
+         - Si aucun coup : passe le tour (2 passes consécutives = fin).
+         - Sinon : l'IA choisit un coup, on le joue.
+         - Accumule les statistiques (nœuds, temps, coupes) par couleur.
+      3. Retourne :
+         - Le gagnant (BLANC, NOIR, ou VIDE).
+         - Les scores (blancs, noirs).
+         - Les statistiques moyennes par IA.
+
+FONCTION main()
+    Point d'entrée du benchmark :
+      1. Définit les 4 stratégies et les paramètres (profondeur=6, temps=3s,
+         10 parties par paire).
+      2. Pour chaque paire de stratégies (s1 comme Blanc vs s2 comme Noir),
+         joue NB_PARTIES parties et enregistre les victoires et scores.
+      3. Affiche :
+         - Le résultat de chaque partie (score et gagnant).
+         - Un tableau des victoires (lignes = Blanc, colonnes = Noir).
+         - Les statistiques moyennes par stratégie (nœuds/coup, temps/coup,
+           coupes/coup).
+         - Un classement final par nombre total de victoires.
+
+  Point d'entrée :
+      if __name__ == "__main__":
+          main()
+      → Lance le benchmark complet dans le terminal.
+
+
+================================================================================
+  FLUX D'EXÉCUTION GLOBAL
+================================================================================
+
+  1. L'utilisateur lance "python main.py".
+  2. JeuOthelloGUI.__init__() initialise Pygame et affiche le menu.
+  3. L'utilisateur clique sur un mode de jeu.
+     - Si HVA ou AVA : sous-menu pour choisir la stratégie IA.
+  4. lancer_mode() crée les objets IAOthello et reinitialiser() prépare le plateau.
+  5. La boucle executer() tourne à 60 FPS :
+     a. Événements : clics, mouvements souris, touches clavier.
+     b. Si c'est le tour d'un humain : attend un clic sur une case valide.
+     c. Si c'est le tour de l'IA : lance un thread qui appelle choisir_coup().
+        - choisir_coup() utilise l'approfondissement itératif + NegaMax + α-β.
+        - Le thread stocke le résultat. Au prochain frame, le coup est appliqué.
+     d. effectuer_coup() met à jour le plateau et lance les animations.
+     e. Le dessin est rafraîchi : plateau, pions, panneau info, animations.
+  6. Quand la partie est finie (aucun joueur ne peut jouer) :
+     - L'overlay de fin s'affiche avec le résultat.
+     - L'utilisateur peut cliquer "Nouvelle Partie" ou "Menu".
+  7. ESCAPE ou fermeture de la fenêtre → pygame.quit() + sys.exit().
+
+================================================================================

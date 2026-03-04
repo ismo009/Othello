@@ -90,7 +90,7 @@ def jouer_partie(strat_blanc, strat_noir, profondeur=6, temps_max=2.0, verbose=F
 
 def main():
     strats = [STRAT_POSITIONNEL, STRAT_ABSOLU, STRAT_MOBILITE, STRAT_MIXTE]
-    NB_PARTIES = 1  # 1 partie par paire
+    NB_PARTIES = 10  # 1 partie par paire
     PROFONDEUR = 6
     TEMPS = 3.0
 
