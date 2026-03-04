@@ -46,45 +46,6 @@ HAUTEUR_FENETRE = HAUTEUR_PLATEAU + 2 * MARGE_PLATEAU
 
 FPS = 60
 
-
-class AnimationPion:
-    """Animation de retournement d'un pion."""
-    def __init__(self, ligne, col, couleur_depart, couleur_fin, duree=300):
-        self.ligne = ligne
-        self.col = col
-        self.couleur_depart = couleur_depart
-        self.couleur_fin = couleur_fin
-        self.duree = duree  # millisecondes
-        self.debut = pygame.time.get_ticks()
-        self.termine = False
-
-    def progression(self):
-        """Retourne la progression de l'animation entre 0 et 1."""
-        elapsed = pygame.time.get_ticks() - self.debut
-        p = min(elapsed / self.duree, 1.0)
-        if p >= 1.0:
-            self.termine = True
-        return p
-
-    def rayon_courant(self, rayon_max):
-        """Simule un retournement : le rayon diminue puis augmente."""
-        p = self.progression()
-        if p < 0.5:
-            # Phase de réduction
-            return rayon_max * (1 - 2 * p)
-        else:
-            # Phase d'agrandissement
-            return rayon_max * (2 * p - 1)
-
-    def couleur_courante(self):
-        """Retourne la couleur actuelle du pion."""
-        p = self.progression()
-        if p < 0.5:
-            return self.couleur_depart
-        else:
-            return self.couleur_fin
-
-
 class JeuOthelloGUI:
     """Classe principale de l'interface graphique du jeu d'Othello."""
 
@@ -137,7 +98,6 @@ class JeuOthelloGUI:
         self.message = ""
         self.dernier_coup = None
         self.pions_retournes = []
-        self.animations = []
         self.historique = []
         self.tour_passe = False
         self.case_survolee = None
@@ -224,7 +184,7 @@ class JeuOthelloGUI:
 
     def dessiner_coups_valides(self):
         """Dessine les coups possibles pour le joueur actuel."""
-        if self.partie_finie or self.animations:
+        if self.partie_finie:
             return
         # En mode IA, ne pas afficher les coups valides pour l'IA
         if self.mode == self.MODE_HVA and self.joueur_actuel == self.ia_couleur:
@@ -250,7 +210,7 @@ class JeuOthelloGUI:
 
     def dessiner_survol(self):
         """Met en surbrillance la case survolée si c'est un coup valide."""
-        if self.case_survolee is None or self.partie_finie or self.animations:
+        if self.case_survolee is None or self.partie_finie:
             return
         # Pas de survol quand c'est le tour de l'IA
         if self.mode == self.MODE_HVA and self.joueur_actuel == self.ia_couleur:
@@ -282,52 +242,23 @@ class JeuOthelloGUI:
         """Dessine tous les pions sur le plateau."""
         rayon = TAILLE_CASE // 2 - 6
 
-        # Ensemble des cases en animation
-        cases_animees = {(a.ligne, a.col) for a in self.animations}
-
         for l in range(TAILLE):
             for c in range(TAILLE):
                 if self.plateau[l][c] == VIDE:
                     continue
-                if (l, c) in cases_animees:
-                    continue  # Géré par l'animation
 
                 cx, cy = self.case_vers_pixel(l, c)
                 couleur = COULEUR_NOIR if self.plateau[l][c] == NOIR else COULEUR_BLANC
 
-                # Ombre
-                pygame.draw.circle(self.ecran, (0, 0, 0, 80), (cx + 2, cy + 2), rayon)
+                
                 # Pion
                 pygame.draw.circle(self.ecran, couleur, (cx, cy), rayon)
-                # Reflet
-                reflet_couleur = (80, 80, 80) if self.plateau[l][c] == NOIR else (255, 255, 255)
-                pygame.draw.circle(self.ecran, reflet_couleur, (cx - 8, cy - 8), rayon // 4)
-
                 # Marqueur du dernier coup
                 if self.dernier_coup == (l, c):
                     pygame.draw.circle(self.ecran, COULEUR_DERNIER, (cx, cy), 6)
-
                 # Marqueur des pions retournés au dernier coup
-                if (l, c) in self.pions_retournes and not self.animations:
+                if (l, c) in self.pions_retournes:
                     pygame.draw.circle(self.ecran, COULEUR_RETOURNE, (cx, cy), 5)
-
-    def dessiner_animations(self):
-        """Dessine les animations de retournement."""
-        rayon_max = TAILLE_CASE // 2 - 6
-
-        for anim in self.animations:
-            cx, cy = self.case_vers_pixel(anim.ligne, anim.col)
-            rayon = max(2, int(anim.rayon_courant(rayon_max)))
-            couleur = anim.couleur_courante()
-
-            # Ombre
-            pygame.draw.circle(self.ecran, (0, 0, 0), (cx + 2, cy + 2), rayon)
-            # Pion (ellipse pour simuler la 3D)
-            rect = pygame.Rect(cx - rayon, cy - rayon_max, rayon * 2, rayon_max * 2)
-            pygame.draw.ellipse(self.ecran, couleur, rect)
-
-        # Nettoyer les animations terminées
-        self.animations = [a for a in self.animations if not a.termine]
 
     def dessiner_panneau_info(self):
         """Dessine le panneau d'informations à droite."""
@@ -532,25 +463,6 @@ class JeuOthelloGUI:
             x_btn + (largeur_btn - texte2.get_width()) // 2,
             y_btn2 + (hauteur_btn - texte2.get_height()) // 2
         ))
-
-    def dessiner_coordonnees(self):
-        """Dessine les coordonnées A-H et 1-8 autour du plateau."""
-        lettres = "ABCDEFGH"
-        for i in range(TAILLE):
-            x = MARGE_PLATEAU + i * TAILLE_CASE + TAILLE_CASE // 2
-            # Lettres en haut
-            lettre = self.police_petit.render(lettres[i], True, COULEUR_TEXTE_DIM)
-            self.ecran.blit(lettre, (x - lettre.get_width() // 2, 8))
-            # Lettres en bas
-            self.ecran.blit(lettre, (
-                x - lettre.get_width() // 2,
-                MARGE_PLATEAU + HAUTEUR_PLATEAU + 5
-            ))
-
-            y = MARGE_PLATEAU + i * TAILLE_CASE + TAILLE_CASE // 2
-            # Chiffres à gauche
-            chiffre = self.police_petit.render(str(i + 1), True, COULEUR_TEXTE_DIM)
-            self.ecran.blit(chiffre, (8, y - chiffre.get_height() // 2))
 
     def dessiner_ecran_fin(self):
         """Overlay semi-transparent à la fin de la partie."""
@@ -776,7 +688,7 @@ class JeuOthelloGUI:
 
     def est_tour_ia(self):
         """Vérifie si c'est le tour de l'IA."""
-        if self.partie_finie or self.animations:
+        if self.partie_finie:
             return False
         if self.mode == self.MODE_HVA and self.joueur_actuel == self.ia_couleur:
             return True
@@ -840,7 +752,7 @@ class JeuOthelloGUI:
             self.ia_reflechit = False
             return
 
-        if self.partie_finie or self.animations:
+        if self.partie_finie:
             return
 
         # Ne pas permettre de cliquer pendant le tour de l'IA
@@ -871,17 +783,6 @@ class JeuOthelloGUI:
             'pions_retournes': pions[:],
             'plateau_avant': [r[:] for r in ancien_plateau]
         })
-
-        # Lancer les animations de retournement
-        self.animations = []
-        couleur_depart = COULEUR_BLANC if self.joueur_actuel == NOIR else COULEUR_NOIR
-        couleur_fin = COULEUR_NOIR if self.joueur_actuel == NOIR else COULEUR_BLANC
-
-        for i, (l, c) in enumerate(pions):
-            delai = i * 50  # Décalage entre chaque animation
-            anim = AnimationPion(l, c, couleur_depart, couleur_fin, duree=300)
-            anim.debut += delai
-            self.animations.append(anim)
 
         self.plateau = nouveau_plateau
         self.dernier_coup = (ligne, col)
@@ -951,9 +852,7 @@ class JeuOthelloGUI:
 
                 # Lancer la réflexion de l'IA si c'est son tour
                 if (self.est_tour_ia() and not self.ia_reflechit
-                        and not self.animations and not self.partie_finie):
-                    # Petit délai pour que l'animation se termine visuellement
-                    pygame.time.wait(200)
+                        and not self.partie_finie):
                     self.lancer_reflexion_ia()
 
             # ─── Dessin ───
@@ -961,12 +860,10 @@ class JeuOthelloGUI:
                 self.dessiner_menu()
             else:
                 self.ecran.fill((20, 20, 20))
-                self.dessiner_coordonnees()
                 self.dessiner_plateau()
                 self.dessiner_coups_valides()
                 self.dessiner_survol()
                 self.dessiner_pions()
-                self.dessiner_animations()
                 self.dessiner_ecran_fin()
                 self.dessiner_panneau_info()
 
