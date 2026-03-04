@@ -34,16 +34,15 @@ COULEUR_BOUTON_HOVER = (90, 90, 90)      # Boutons survolés
 # ─────────────────────────────────────────────────────────────
 # Dimensions
 # ─────────────────────────────────────────────────────────────
-TAILLE_CASE     = 70                     # Taille d'une case en pixels
+TAILLE_CASE     = 80                     # Taille d'une case en pixels
 MARGE_PLATEAU   = 30                     # Marge autour du plateau
-LARGEUR_PANNEAU = 220                    # Largeur du panneau d'info
+LARGEUR_PANNEAU = 300                    # Largeur du panneau d'info
 
 LARGEUR_PLATEAU = TAILLE * TAILLE_CASE
 HAUTEUR_PLATEAU = TAILLE * TAILLE_CASE
 
 LARGEUR_FENETRE = LARGEUR_PLATEAU + 2 * MARGE_PLATEAU + LARGEUR_PANNEAU
 HAUTEUR_FENETRE = HAUTEUR_PLATEAU + 2 * MARGE_PLATEAU
-
 FPS = 60
 
 class JeuOthelloGUI:
