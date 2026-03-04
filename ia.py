@@ -32,6 +32,19 @@ from othello import (
 
 INF = 1_000_000
 
+# Stratégies d'évaluation disponibles
+STRAT_POSITIONNEL = "positionnel"
+STRAT_ABSOLU = "absolu"
+STRAT_MOBILITE = "mobilite"
+STRAT_MIXTE = "mixte"
+
+STRATEGIES = {
+    STRAT_POSITIONNEL: "Positionnelle",
+    STRAT_ABSOLU: "Absolue",
+    STRAT_MOBILITE: "Mobilité",
+    STRAT_MIXTE: "Mixte",
+}
+
 # Table de poids positionnels classique pour Othello 8x8
 # Les coins valent beaucoup, les cases adjacentes aux coins (X/C) sont dangereuses
 POIDS_POSITION = [
@@ -377,6 +390,123 @@ def evaluation(plateau, joueur):
     return score
 
 
+def evaluation_positionnelle_strat(plateau, joueur):
+    """
+    Stratégie positionnelle : évalue principalement selon la position
+    des pions sur le plateau (poids statiques et coins).
+    """
+    noirs, blancs = compter_pions(plateau)
+    total_pions = noirs + blancs
+    vides = 64 - total_pions
+
+    if vides == 0 or (not coups_valides_rapide(plateau, NOIR) and
+                       not coups_valides_rapide(plateau, BLANC)):
+        diff = (noirs - blancs) if joueur == NOIR else (blancs - noirs)
+        if diff > 0:
+            return INF - 100 + diff
+        elif diff < 0:
+            return -INF + 100 - diff
+        else:
+            return 0
+
+    if total_pions <= 20:
+        score = (
+            eval_positionnelle(plateau, joueur) * 5.0 +
+            eval_coins(plateau, joueur) * 10.0
+        )
+    elif total_pions <= 50:
+        score = (
+            eval_positionnelle(plateau, joueur) * 3.0 +
+            eval_coins(plateau, joueur) * 15.0 +
+            eval_stabilite(plateau, joueur) * 2.0
+        )
+    else:
+        diff = (noirs - blancs) if joueur == NOIR else (blancs - noirs)
+        score = (
+            eval_positionnelle(plateau, joueur) * 1.0 +
+            eval_coins(plateau, joueur) * 20.0 +
+            diff * 5.0
+        )
+
+    return score
+
+
+def evaluation_absolue_strat(plateau, joueur):
+    """
+    Stratégie absolue : maximise la différence brute de pions.
+    Approche gloutonne, privilégie le matériel.
+    """
+    noirs, blancs = compter_pions(plateau)
+    total_pions = noirs + blancs
+    vides = 64 - total_pions
+
+    if vides == 0 or (not coups_valides_rapide(plateau, NOIR) and
+                       not coups_valides_rapide(plateau, BLANC)):
+        diff = (noirs - blancs) if joueur == NOIR else (blancs - noirs)
+        if diff > 0:
+            return INF - 100 + diff
+        elif diff < 0:
+            return -INF + 100 - diff
+        else:
+            return 0
+
+    diff = (noirs - blancs) if joueur == NOIR else (blancs - noirs)
+    score = diff * 10.0 + eval_coins(plateau, joueur) * 5.0
+
+    return score
+
+
+def evaluation_mobilite_strat(plateau, joueur):
+    """
+    Stratégie mobilité : maximise le nombre de coups disponibles
+    et minimise les pions frontières.
+    """
+    noirs, blancs = compter_pions(plateau)
+    total_pions = noirs + blancs
+    vides = 64 - total_pions
+
+    if vides == 0 or (not coups_valides_rapide(plateau, NOIR) and
+                       not coups_valides_rapide(plateau, BLANC)):
+        diff = (noirs - blancs) if joueur == NOIR else (blancs - noirs)
+        if diff > 0:
+            return INF - 100 + diff
+        elif diff < 0:
+            return -INF + 100 - diff
+        else:
+            return 0
+
+    if total_pions <= 20:
+        score = (
+            eval_mobilite(plateau, joueur) * 8.0 +
+            eval_frontieres(plateau, joueur) * 3.0 +
+            eval_coins(plateau, joueur) * 5.0
+        )
+    elif total_pions <= 50:
+        score = (
+            eval_mobilite(plateau, joueur) * 6.0 +
+            eval_coins(plateau, joueur) * 8.0 +
+            eval_frontieres(plateau, joueur) * 2.0
+        )
+    else:
+        diff = (noirs - blancs) if joueur == NOIR else (blancs - noirs)
+        score = (
+            eval_mobilite(plateau, joueur) * 2.0 +
+            diff * 8.0 +
+            eval_coins(plateau, joueur) * 10.0
+        )
+
+    return score
+
+
+# Dictionnaire des fonctions d'évaluation par stratégie
+FONCTIONS_EVALUATION = {
+    STRAT_POSITIONNEL: evaluation_positionnelle_strat,
+    STRAT_ABSOLU: evaluation_absolue_strat,
+    STRAT_MOBILITE: evaluation_mobilite_strat,
+    STRAT_MIXTE: evaluation,
+}
+
+
 # ═══════════════════════════════════════════════════════════════
 # Tri des coups (Move Ordering)
 # ═══════════════════════════════════════════════════════════════
@@ -420,16 +550,19 @@ TT_BETA = 2   # Borne inférieure
 class IAOthello:
     """Moteur d'IA pour Othello."""
 
-    def __init__(self, couleur, profondeur_max=8, temps_max=5.0):
+    def __init__(self, couleur, profondeur_max=8, temps_max=5.0, strategie=STRAT_MIXTE):
         """
         Args:
             couleur: NOIR ou BLANC
             profondeur_max: profondeur maximale de recherche
             temps_max: temps maximum par coup en secondes
+            strategie: type de stratégie d'évaluation
         """
         self.couleur = couleur
         self.profondeur_max = profondeur_max
         self.temps_max = temps_max
+        self.strategie = strategie
+        self.fn_evaluation = FONCTIONS_EVALUATION[strategie]
 
         # Table de transposition : hash → (profondeur, score, type, meilleur_coup)
         self.table_transposition = {}
@@ -563,7 +696,7 @@ class IAOthello:
 
         # Feuille : évaluation
         if profondeur == 0:
-            score = evaluation(plateau, joueur)
+            score = self.fn_evaluation(plateau, joueur)
             self.table_transposition[h] = (0, score, TT_EXACT, None)
             return score
 
@@ -574,7 +707,7 @@ class IAOthello:
             coups_adv = coups_valides_rapide(plateau, adversaire(joueur))
             if not coups_adv:
                 # Fin de partie
-                return evaluation(plateau, joueur)
+                return self.fn_evaluation(plateau, joueur)
             else:
                 # Passer le tour
                 return -self._negamax(plateau, adversaire(joueur),

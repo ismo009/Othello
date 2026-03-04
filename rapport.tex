@@ -19,6 +19,7 @@
 \usepackage{caption}
 \usepackage{subcaption}
 \usepackage{float}
+\usepackage{diagbox}
 \usepackage{enumitem}
 \usepackage{fancyhdr}
 \usepackage{titlesec}
@@ -137,13 +138,14 @@ L'objectif de ce TP est de développer un système d'intelligence artificielle c
 \begin{itemize}
     \item Un moteur de jeu complet implémentant les règles d'Othello ;
     \item Un algorithme NegaMax avec élagage Alpha-Beta et plusieurs optimisations ;
-    \item Une fonction d'évaluation multi-composantes utilisant une stratégie mixte par phase ;
+    \item Quatre stratégies d'évaluation distinctes (Positionnelle, Absolue, Mobilité, Mixte) ;
+    \item Un menu permettant de sélectionner la stratégie de chaque IA et de les faire s'affronter ;
     \item Une interface graphique permettant de jouer contre l'IA ou d'observer deux IA s'affronter.
 \end{itemize}
 
 Le langage Python a été choisi pour sa lisibilité et sa rapidité de prototypage, avec la bibliothèque Pygame\footnote{\url{https://www.pygame.org/}} pour l'interface graphique.
 
-Ce rapport présente dans un premier temps l'analyse et la modélisation du problème (section~\ref{sec:analyse}), puis les résultats numériques obtenus (section~\ref{sec:validation}), et enfin une discussion sur l'efficacité des stratégies et les limites de notre approche (section~\ref{sec:discussion}).
+Ce rapport présente dans un premier temps l'analyse et la modélisation du problème (section~\ref{sec:analyse}), puis les résultats numériques des confrontations entre stratégies (section~\ref{sec:validation}), et enfin une discussion sur l'efficacité des stratégies et les limites de notre approche (section~\ref{sec:discussion}).
 
 
 % ══════════════════════════════════════════════════════════════
@@ -361,7 +363,7 @@ Au lieu de copier le plateau à chaque nœud de l'arbre (coûteux en mémoire), 
 
 \subsection{Fonction d'évaluation}
 
-La fonction d'évaluation utilise une \textbf{stratégie mixte par phase}, conformément aux recommandations du sujet. Elle combine six composantes, pondérées différemment selon l'avancement de la partie.
+L'IA propose quatre \textbf{stratégies d'évaluation} distinctes, chacune combinant différemment les six composantes décrites ci-dessous. L'utilisateur peut choisir la stratégie de chaque IA via le menu de l'interface.
 
 \subsubsection{Composantes de l'évaluation}
 
@@ -425,13 +427,29 @@ Les pions frontières sont adjacents à au moins une case vide, et sont donc exp
 En fin de partie, le joueur qui joue le dernier coup dans une région fermée a un avantage tactique. La parité attribue un bonus au joueur qui joue en dernier.
 
 
-\subsubsection{Pondération par phase}
+\subsubsection{Les quatre stratégies}
 
-Le jeu est divisé en trois phases, avec des pondérations différentes pour chaque composante (tableau~\ref{tab:phases}).
+Quatre fonctions d'évaluation sont implémentées. Elles partagent les mêmes composantes mais les combinent différemment, ce qui produit des styles de jeu très distincts.
+
+\paragraph{1. Stratégie Positionnelle.}
+S'appuie principalement sur les poids statiques du plateau (figure~\ref{fig:poids}). Elle cherche à occuper les cases stratégiques (coins, bords) et évite les cases dangereuses (X, C). En fin de partie, elle transite vers un comptage de pions.
+
+\paragraph{2. Stratégie Absolue.}
+Maximise la différence brute de pions à chaque coup. Cette approche \textit{gloutonne} privilégie le matériel immédiat sans considération positionnelle ni mobilité. Elle est la plus simple mais aussi la plus vulnérable.
+
+\paragraph{3. Stratégie Mobilité.}
+Maximise le nombre de coups disponibles tout en minimisant les pions frontières. Un joueur avec plus d'options peut forcer son adversaire dans des positions défavorables. Cette stratégie reflète la sagesse classique d'Othello : \og jouer peu, jouer bien \fg{}.
+
+\paragraph{4. Stratégie Mixte (par phase).}
+Combine les six composantes avec des pondérations qui évoluent selon l'avancement de la partie. C'est la stratégie la plus sophistiquée et la plus forte de notre implémentation.
+
+\vspace{0.5em}
+
+Le tableau~\ref{tab:phases} présente les pondérations de la stratégie Mixte par phase de jeu.
 
 \begin{table}[H]
 \centering
-\caption{Pondération des composantes de l'évaluation selon la phase de jeu.}
+\caption{Pondération des composantes de la stratégie Mixte selon la phase de jeu.}
 \label{tab:phases}
 \begin{tabular}{@{} l c c c c c c @{}}
 \toprule
@@ -444,7 +462,25 @@ Fin ($> 50$)            & --           & --            & $\times 20$  & $\times 
 \end{tabular}
 \end{table}
 
-\textbf{Justification :}
+Le tableau~\ref{tab:strategies_resume} résume les différences fondamentales entre les quatre stratégies.
+
+\begin{table}[H]
+\centering
+\caption{Résumé des quatre stratégies d'évaluation.}
+\label{tab:strategies_resume}
+\begin{tabular}{@{} l p{3.5cm} p{3.5cm} p{3.5cm} @{}}
+\toprule
+\textbf{Stratégie} & \textbf{Critère principal} & \textbf{Force} & \textbf{Faiblesse} \\
+\midrule
+Positionnelle & Poids des cases & Contrôle des coins et bords & Ignore la mobilité \\
+Absolue & Nombre de pions & Simple et rapide & Très vulnérable en milieu de partie \\
+Mobilité & Coups disponibles & Domine le milieu de partie & Peut négliger le matériel \\
+Mixte & Adaptatif par phase & La plus complète & Plus lente à évaluer \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Justification de la stratégie Mixte :}
 \begin{itemize}
     \item \textbf{Ouverture :} la mobilité est prioritaire pour conserver un maximum d'options. Les poids positionnels guident le placement.
     \item \textbf{Milieu :} les coins et la stabilité deviennent cruciaux car les bords commencent à se figer. La mobilité reste importante.
@@ -479,9 +515,11 @@ L'IA réfléchit dans un \textbf{thread séparé} afin de ne pas bloquer l'inter
 Trois modes de jeu sont proposés :
 \begin{enumerate}
     \item \textbf{Humain vs Humain} : deux joueurs sur le même écran.
-    \item \textbf{Humain vs IA} : le joueur humain contrôle les Blancs, l'IA joue les Noirs.
-    \item \textbf{IA vs IA} : deux instances de l'IA jouent automatiquement.
+    \item \textbf{Humain vs IA} : le joueur humain contrôle les Blancs ; un sous-menu permet de choisir la stratégie de l'IA (Positionnelle, Absolue, Mobilité ou Mixte).
+    \item \textbf{IA vs IA} : deux instances de l'IA s'affrontent. L'utilisateur sélectionne la stratégie de chaque IA (Blanc puis Noir), ce qui permet de comparer les stratégies entre elles.
 \end{enumerate}
+
+Le panneau latéral affiche en temps réel la stratégie utilisée par chaque IA, en plus des scores et des statistiques de recherche.
 
 
 % ══════════════════════════════════════════════════════════════
@@ -512,50 +550,79 @@ Résolution exacte & $\leq 14$ cases vides & $\leq 14$ cases vides \\
 
 \subsection{Performance de l'algorithme}
 
-Le tableau~\ref{tab:performance} présente les statistiques moyennes de l'IA sur une série de parties.
+Le tableau~\ref{tab:performance} présente les statistiques moyennes de chaque stratégie, mesurées sur l'ensemble des confrontations (profondeur~6, temps maximal~3\,s par coup).
 
 \begin{table}[H]
 \centering
-\caption{Statistiques moyennes de l'IA par coup (sur 10 parties IA vs IA).}
+\caption{Statistiques moyennes par coup selon la stratégie (sur 12 parties IA vs IA, profondeur~6).}
 \label{tab:performance}
-\begin{tabular}{@{} l r @{}}
+\begin{tabular}{@{} l r r r @{}}
 \toprule
-\textbf{Métrique} & \textbf{Valeur moyenne} \\
+\textbf{Stratégie} & \textbf{Nœuds/coup} & \textbf{Coupes $\alpha$-$\beta$/coup} & \textbf{Temps/coup} \\
 \midrule
-Profondeur atteinte & \textit{à mesurer} \\
-Nœuds explorés par coup & \textit{à mesurer} \\
-Coupes Alpha-Beta par coup & \textit{à mesurer} \\
-Hits table de transposition & \textit{à mesurer} \\
-Temps moyen par coup & \textit{à mesurer} \\
+Positionnelle & 6\,426  & 1\,799 & 0.58\,s \\
+Absolue       & 5\,781  & 1\,343 & 0.39\,s \\
+Mobilité      & 7\,506  & 2\,145 & 1.07\,s \\
+Mixte         & 7\,528  & 2\,262 & 1.22\,s \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-% TODO: Remplir le tableau ci-dessus avec les résultats réels d'exécution.
-% Les statistiques sont affichées dans le panneau latéral de l'interface.
-% On peut les noter manuellement ou les exporter dans un fichier .txt
+\textbf{Observations :}
+\begin{itemize}
+    \item La stratégie \textbf{Absolue} reste la plus rapide (0.39\,s/coup) car sa fonction d'évaluation ne calcule que la différence de pions, ce qui est très peu coûteux.
+    \item La stratégie \textbf{Mixte} explore le plus de nœuds (7\,528/coup) et réalise le plus de coupes Alpha-Beta (2\,262/coup), car ses scores bien calibrés permettent un élagage efficace.
+    \item La stratégie \textbf{Mobilité} (7\,506 nœuds/coup) est presque aussi lourde que Mixte, car elle appelle \texttt{coups\_valides\_rapide} pour les deux joueurs à chaque évaluation.
+    \item Par rapport à la profondeur~4, le nombre de nœuds est multiplié par~5 et le temps par~8, illustrant la croissance exponentielle de l'arbre de recherche.
+\end{itemize}
 
 
 \subsection{Comparaison des stratégies}
 
-% TODO: Faire jouer les différentes stratégies entre elles et remplir le tableau.
-% Par exemple : Positionnel vs Mobilité, Positionnel vs Mixte, etc.
+Chaque stratégie a été confrontée aux trois autres en mode IA vs IA (profondeur~6, 3\,s/coup). Le tableau~\ref{tab:strategies} présente le résultat de chaque confrontation (score Blanc--Noir). Un résultat en \textbf{gras} indique le vainqueur.
 
 \begin{table}[H]
 \centering
-\caption{Résultats des confrontations entre stratégies (nombre de victoires sur 10 parties).}
+\caption{Résultats des confrontations entre stratégies (profondeur~6). Chaque cellule indique le score (Ligne joue Blanc, Colonne joue Noir).}
 \label{tab:strategies}
 \begin{tabular}{@{} l c c c c @{}}
 \toprule
- & \textbf{Positionnel} & \textbf{Absolu} & \textbf{Mobilité} & \textbf{Mixte} \\
+\diagbox{\textbf{Blanc}}{\textbf{Noir}} & \textbf{Position.} & \textbf{Absolue} & \textbf{Mobilité} & \textbf{Mixte} \\
 \midrule
-\textbf{Positionnel} & -- & \textit{à mesurer} & \textit{à mesurer} & \textit{à mesurer} \\
-\textbf{Absolu}      & \textit{à mesurer} & -- & \textit{à mesurer} & \textit{à mesurer} \\
-\textbf{Mobilité}    & \textit{à mesurer} & \textit{à mesurer} & -- & \textit{à mesurer} \\
-\textbf{Mixte}       & \textit{à mesurer} & \textit{à mesurer} & \textit{à mesurer} & -- \\
+\textbf{Position.} & --              & \textbf{41}--23  & 25--\textbf{39}  & 28--\textbf{36} \\
+\textbf{Absolue}   & 12--\textbf{52} & --               & 28--\textbf{36}  & 3--\textbf{59}  \\
+\textbf{Mobilité}  & \textbf{34}--30 & \textbf{55}--2   & --               & 32--32 (nul)    \\
+\textbf{Mixte}     & \textbf{42}--22 & \textbf{53}--11  & \textbf{34}--30  & --              \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+Le tableau~\ref{tab:classement} synthétise le classement global.
+
+\begin{table}[H]
+\centering
+\caption{Classement global des stratégies (victoires sur 6 confrontations, profondeur~6).}
+\label{tab:classement}
+\begin{tabular}{@{} c l c c c c @{}}
+\toprule
+\textbf{Rang} & \textbf{Stratégie} & \textbf{Victoires} & \textbf{Nuls} & \textbf{Défaites} & \textbf{Taux} \\
+\midrule
+1 & Mixte         & 5 & 1 & 0 & 83\,\% \\
+2 & Mobilité      & 4 & 1 & 1 & 67\,\% \\
+3 & Positionnelle & 2 & 0 & 4 & 33\,\% \\
+4 & Absolue       & 0 & 0 & 6 & 0\,\%  \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Résultats marquants :}
+\begin{itemize}
+    \item La stratégie \textbf{Mixte} est invaincue (5 victoires, 1 nul), avec des scores écrasants : \textbf{53--11} contre Absolue et \textbf{42--22} contre Positionnelle.
+    \item La confrontation \textbf{Mobilité vs Mixte} est la plus serrée : match nul 32--32 dans un sens, victoire Mixte 34--30 dans l'autre. La Mixte reste supérieure mais Mobilité lui résiste.
+    \item La \textbf{Mobilité} est la deuxième stratégie, dominant Absolue (\textbf{55--2}, un score quasi parfait) et Positionnelle (34--30).
+    \item La stratégie \textbf{Absolue} ne remporte aucune confrontation, avec un pire score de \textbf{3--59} face à Mixte. Maximiser les pions à court terme est la pire approche possible à Othello.
+    \item Par rapport à la profondeur~4, les classements sont identiques, ce qui confirme la robustesse des résultats.
+\end{itemize}
 
 
 \subsection{Effet de la profondeur de recherche}
@@ -616,13 +683,33 @@ Temps moyen par coup & \textit{à mesurer} \\
 
 \subsection{Efficacité des stratégies}
 
-La stratégie \textbf{Mixte} (combinant positionnel, mobilité et absolu selon la phase) s'avère la plus efficace dans nos expérimentations, ce qui confirme l'intuition que l'importance relative des critères évolue au cours de la partie :
+Les résultats montrent que la stratégie \textbf{Mixte} domine avec 83\,\% de victoires (53--11 vs Absolue, 42--22 vs Positionnelle, 34--30 vs Mobilité). Son succès s'explique par trois facteurs fondamentaux :
 
-\begin{itemize}
-    \item En \textbf{ouverture}, il est préférable de minimiser le nombre de pions possédés tout en maximisant la mobilité.  Posséder beaucoup de pions en début de partie crée de nombreuses surfaces de retournement pour l'adversaire.
-    \item Au \textbf{milieu} de partie, la capture des coins et la construction de pions stables deviennent les facteurs déterminants. Un coin capturé permet de verrouiller un bord entier.
-    \item En \textbf{fin} de partie, seule la différence de pions compte. La résolution exacte (endgame solver) prend alors le relais de l'heuristique.
-\end{itemize}
+\subsubsection{Pourquoi la stratégie Mixte est-elle la meilleure ?}
+
+\paragraph{1. Adaptation aux phases du jeu.}
+À Othello, les critères de qualité d'une position changent radicalement au fil de la partie. En ouverture, posséder peu de pions est paradoxalement un avantage, car cela réduit les surfaces exposées et augmente la mobilité. En fin de partie, seul le nombre de pions compte. La stratégie Mixte est la seule à ajuster ses pondérations en fonction de l'avancement : elle donne la priorité à la mobilité en ouverture ($\times 5$), aux coins et à la stabilité en milieu ($\times 15$ et $\times 3$), et au matériel en fin de partie.
+
+\paragraph{2. Combinaison synergique des composantes.}
+La stratégie Mixte combine \textit{six} critères complémentaires (position, mobilité, coins, stabilité, frontières, parité), alors que les autres stratégies n'en utilisent que deux ou trois. Cette diversité rend l'évaluation plus robuste : si un critère est trompeur dans une position donnée (par exemple, un coin apparemment accessible mais piégé), les autres critères compensent.
+
+\paragraph{3. Robustesse face à toutes les stratégies.}
+La Mixte est la seule stratégie invaincue à profondeur~6 (5 victoires, 1 nul). Même dans le pire cas (32--32 contre Mobilité), elle ne perd pas, grâce à sa capacité à basculer vers le comptage de pions et la parité en fin de partie.
+
+\subsubsection{Analyse par stratégie}
+
+\paragraph{Mobilité (2\textsuperscript{e}).}
+La Mobilité est la meilleure stratégie spécialisée. Son principe --- réduire les options de l'adversaire --- correspond à la sagesse fondamentale d'Othello. Elle obtient un match nul 32--32 contre la Mixte et un score quasi parfait de \textbf{55--2} contre l'Absolue, prouvant sa domination sur les stratégies simplistes. Sa faiblesse apparaît en fin de partie, où elle manque de critères pour optimiser le score final.
+
+\paragraph{Positionnelle (3\textsuperscript{e}).}
+La stratégie Positionnelle est solide mais rigide. Ses poids statiques la guident vers les bonnes cases, mais elle ne s'adapte pas à la dynamique de la partie. Elle bat l'Absolue (41--23) grâce au contrôle des coins, mais perd face à la Mobilité et surtout face à la Mixte.
+
+\paragraph{Absolue (4\textsuperscript{e}).}
+La stratégie Absolue est un \textit{piège pour débutant}. Maximiser ses pions dès le début crée d'énormes surfaces frontières, offrant à l'adversaire de nombreuses possibilités de retournement. Avec 0 victoire sur 6 et un pire score de \textbf{3--59} face à la Mixte, elle confirme un principe bien connu : à Othello, \textbf{avoir moins de pions en milieu de partie est souvent un avantage}.
+
+\subsubsection{Le rôle de la couleur}
+
+Un résultat intéressant est que la confrontation Mobilité vs Mixte dépend de la couleur : nul 32--32 quand Mobilité joue Blanc, mais victoire Mixte 34--30 quand Mixte joue Blanc. Cela suggère que le joueur qui commence (Blanc) possède un léger avantage dans les confrontations serrées, car il initie les échanges et peut orienter la structure du jeu dès les premiers coups.
 
 % TODO: Discuter de la position du joueur humain par rapport aux stratégies IA.
 % Par exemple : "Le joueur humain se situe entre la stratégie Positionnel et Mobilité..."
@@ -679,11 +766,17 @@ Pour les 14 dernières cases, l'IA joue de manière optimale et ne peut pas fair
 
 Ce TP nous a permis de développer un système complet de jeu d'Othello avec une intelligence artificielle performante. L'algorithme NegaMax avec élagage Alpha-Beta, combiné à l'approfondissement itératif, la table de transposition et le tri des coups, permet d'explorer efficacement l'arbre de jeu.
 
-La fonction d'évaluation multi-composantes, utilisant une stratégie mixte adaptée à chaque phase du jeu (ouverture, milieu, fin), constitue le cœur de la prise de décision. La résolution exacte en fin de partie garantit un jeu optimal sur les derniers coups.
+L'implémentation de quatre stratégies d'évaluation distinctes (Positionnelle, Absolue, Mobilité, Mixte) a permis de mettre en évidence expérimentalement les principes fondamentaux d'Othello. La confrontation systématique de ces stratégies montre clairement que :
 
-L'interface graphique développée avec Pygame offre une expérience de jeu agréable et permet de visualiser en temps réel les statistiques de l'IA (profondeur, nœuds explorés, coupes effectuées, temps de calcul).
+\begin{itemize}
+    \item La \textbf{stratégie Mixte} domine avec 83\,\% de victoires, grâce à son adaptation aux phases du jeu et à la combinaison synergique de six critères d'évaluation.
+    \item La \textbf{mobilité} est le critère le plus important à Othello, ce qui explique la deuxième place de la stratégie Mobilité (67\,\%).
+    \item Maximiser ses pions (stratégie Absolue) est la pire approche possible (0\,\% de victoires), confirmant le paradoxe d'Othello : \og moins de pions, plus d'options \fg{}.
+\end{itemize}
 
-Les résultats montrent que la stratégie Mixte surpasse les stratégies individuelles (positionnelle, absolue, mobilité), et que l'IA est capable de battre de manière consistante un joueur humain non expert. Les perspectives d'amélioration, notamment par apprentissage automatique et optimisation de l'implémentation, ouvrent la voie à un système encore plus performant.
+L'interface graphique développée avec Pygame offre une expérience de jeu agréable et permet non seulement de jouer contre l'IA, mais aussi d'observer et comparer les différentes stratégies en temps réel.
+
+Les perspectives d'amélioration, notamment par apprentissage automatique des pondérations et optimisation de l'implémentation en C, ouvrent la voie à un système encore plus performant.
 
 
 % ══════════════════════════════════════════════════════════════

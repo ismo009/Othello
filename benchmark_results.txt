@@ -1,0 +1,65 @@
+============================================================
+BENCHMARK IA OTHELLO — Confrontation des stratégies
+Profondeur: 6, Temps max: 3.0s, Parties par paire: 1
+============================================================
+
+--- Positionnelle (Blanc) vs Absolue (Noir) ---
+  Partie 1: 41-23 (Positionnelle gagne) [34.2s]
+
+--- Positionnelle (Blanc) vs Mobilité (Noir) ---
+  Partie 1: 25-39 (Mobilité gagne) [37.7s]
+
+--- Positionnelle (Blanc) vs Mixte (Noir) ---
+  Partie 1: 28-36 (Mixte gagne) [37.0s]
+
+--- Absolue (Blanc) vs Positionnelle (Noir) ---
+  Partie 1: 12-52 (Positionnelle gagne) [22.4s]
+
+--- Absolue (Blanc) vs Mobilité (Noir) ---
+  Partie 1: 28-36 (Mobilité gagne) [31.0s]
+
+--- Absolue (Blanc) vs Mixte (Noir) ---
+  Partie 1: 3-59 (Mixte gagne) [38.6s]
+
+--- Mobilité (Blanc) vs Positionnelle (Noir) ---
+  Partie 1: 34-30 (Mobilité gagne) [54.3s]
+
+--- Mobilité (Blanc) vs Absolue (Noir) ---
+  Partie 1: 55-2 (Mobilité gagne) [36.4s]
+
+--- Mobilité (Blanc) vs Mixte (Noir) ---
+  Partie 1: 32-32 (Nul) [76.1s]
+
+--- Mixte (Blanc) vs Positionnelle (Noir) ---
+  Partie 1: 42-22 (Mixte gagne) [63.9s]
+
+--- Mixte (Blanc) vs Absolue (Noir) ---
+  Partie 1: 53-11 (Mixte gagne) [46.3s]
+
+--- Mixte (Blanc) vs Mobilité (Noir) ---
+  Partie 1: 34-30 (Mixte gagne) [97.1s]
+
+============================================================
+TABLEAU DES VICTOIRES (lignes = Blanc, colonnes = Noir)
+============================================================
+               Positionnelle      Absolue     Mobilité        Mixte
+ Positionnelle           --            2            0            0
+       Absolue            0           --            0            0
+      Mobilité            2            2           --            0
+         Mixte            2            2            1           --
+
+============================================================
+STATISTIQUES MOYENNES PAR STRATEGIE
+============================================================
+ Positionnelle: nœuds/coup=6,426, temps/coup=0.58s, coupes/coup=1,799
+       Absolue: nœuds/coup=5,781, temps/coup=0.39s, coupes/coup=1,343
+      Mobilité: nœuds/coup=7,506, temps/coup=1.07s, coupes/coup=2,145
+         Mixte: nœuds/coup=7,528, temps/coup=1.22s, coupes/coup=2,262
+
+============================================================
+CLASSEMENT (total victoires)
+============================================================
+           Mixte: 5 victoires
+        Mobilité: 4 victoires
+   Positionnelle: 2 victoires
+         Absolue: 0 victoires
