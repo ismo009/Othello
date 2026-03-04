@@ -12,7 +12,8 @@ from othello import (
     creer_plateau, coups_valides, jouer_coup,
     compter_pions, est_partie_finie, gagnant, adversaire
 )
-from ia import IAOthello, STRATEGIES, STRAT_MIXTE, STRAT_POSITIONNEL, STRAT_ABSOLU, STRAT_MOBILITE
+from ia import (IAOthello, STRATEGIES, STRAT_MIXTE, STRAT_POSITIONNEL, STRAT_ABSOLU, STRAT_MOBILITE,
+                ALGORITHMES, ALGO_NEGAMAX, ALGO_MINMAX, ALGO_MCTS)
 
 # ─────────────────────────────────────────────────────────────
 # Couleurs
@@ -81,8 +82,11 @@ class JeuOthelloGUI:
         self.ia_coup_pret = None
         self.ia_stats = None
 
-        # Sous-menu et stratégies IA
-        self.sous_menu = None       # None, 'hva', 'ava_blanc', 'ava_noir'
+        # Sous-menu, algorithmes et stratégies IA
+        self.sous_menu = None
+        self.algo_hva = ALGO_NEGAMAX
+        self.algo_ava_blanc = ALGO_NEGAMAX
+        self.algo_ava_noir = ALGO_NEGAMAX
         self.strat_hva = STRAT_MIXTE
         self.strat_ava_blanc = STRAT_MIXTE
         self.strat_ava_noir = STRAT_MIXTE
@@ -107,12 +111,14 @@ class JeuOthelloGUI:
         # Recréer les IA si besoin
         if self.mode == self.MODE_HVA:
             self.ia = IAOthello(self.ia_couleur, profondeur_max=10, temps_max=5.0,
-                                strategie=self.strat_hva)
+                                strategie=self.strat_hva, algorithme=self.algo_hva)
         elif self.mode == self.MODE_AVA:
             self.ia = IAOthello(BLANC, profondeur_max=8, temps_max=3.0,
-                                strategie=self.strat_ava_blanc)
+                                strategie=self.strat_ava_blanc,
+                                algorithme=self.algo_ava_blanc)
             self.ia2 = IAOthello(NOIR, profondeur_max=8, temps_max=3.0,
-                                 strategie=self.strat_ava_noir)
+                                 strategie=self.strat_ava_noir,
+                                 algorithme=self.algo_ava_noir)
 
     def lancer_mode(self, mode):
         """Lance un mode de jeu."""
@@ -120,12 +126,14 @@ class JeuOthelloGUI:
         if mode == self.MODE_HVA:
             self.ia_couleur = NOIR  # IA joue les noirs
             self.ia = IAOthello(NOIR, profondeur_max=10, temps_max=5.0,
-                                strategie=self.strat_hva)
+                                strategie=self.strat_hva, algorithme=self.algo_hva)
         elif mode == self.MODE_AVA:
             self.ia = IAOthello(BLANC, profondeur_max=8, temps_max=3.0,
-                                strategie=self.strat_ava_blanc)
+                                strategie=self.strat_ava_blanc,
+                                algorithme=self.algo_ava_blanc)
             self.ia2 = IAOthello(NOIR, profondeur_max=8, temps_max=3.0,
-                                 strategie=self.strat_ava_noir)
+                                 strategie=self.strat_ava_noir,
+                                 algorithme=self.algo_ava_noir)
         else:
             self.ia = None
             self.ia2 = None
@@ -330,15 +338,15 @@ class JeuOthelloGUI:
             self.ecran.blit(tour, (x_centre - tour.get_width() // 2, y))
             y += 30
 
-            # Afficher les stratégies IA
+            # Afficher algorithme et stratégies IA
             if self.mode == self.MODE_HVA:
-                strat_txt = f"Stratégie : {STRATEGIES[self.strat_hva]}"
-                strat_r = self.police_petit.render(strat_txt, True, (150, 200, 255))
+                algo_txt = f"{ALGORITHMES[self.algo_hva]} / {STRATEGIES[self.strat_hva]}"
+                strat_r = self.police_petit.render(algo_txt, True, (150, 200, 255))
                 self.ecran.blit(strat_r, (x_centre - strat_r.get_width() // 2, y))
                 y += 20
             elif self.mode == self.MODE_AVA:
-                s1 = f"Blanc : {STRATEGIES[self.strat_ava_blanc]}"
-                s2 = f"Noir : {STRATEGIES[self.strat_ava_noir]}"
+                s1 = f"B: {ALGORITHMES[self.algo_ava_blanc]} / {STRATEGIES[self.strat_ava_blanc]}"
+                s2 = f"N: {ALGORITHMES[self.algo_ava_noir]} / {STRATEGIES[self.strat_ava_noir]}"
                 r1 = self.police_petit.render(s1, True, (200, 200, 255))
                 r2 = self.police_petit.render(s2, True, (255, 200, 150))
                 self.ecran.blit(r1, (x_centre - r1.get_width() // 2, y))
@@ -378,7 +386,7 @@ class JeuOthelloGUI:
                 ia_label = self.police_petit.render("Dernier coup IA :", True, (150, 200, 255))
                 self.ecran.blit(ia_label, (x_centre - ia_label.get_width() // 2, y))
                 y += 20
-                for key, label in [('profondeur_atteinte', 'Profondeur'),
+                for key, label in [('profondeur_atteinte', 'Itérations' if self.ia_stats.get('profondeur_atteinte', 0) > 100 else 'Profondeur'),
                                     ('noeuds', 'Noeuds'),
                                     ('coupes', 'Coupes α-β'),
                                     ('tt_hits', 'Cache TT'),
@@ -499,7 +507,10 @@ class JeuOthelloGUI:
         cx = LARGEUR_FENETRE // 2
 
         if self.sous_menu is not None:
-            self._dessiner_sous_menu_strategie()
+            if self.sous_menu.endswith('_algo'):
+                self._dessiner_sous_menu_algorithme()
+            else:
+                self._dessiner_sous_menu_strategie()
             return
 
         y = 60
@@ -553,6 +564,85 @@ class JeuOthelloGUI:
         footer = self.police_petit.render("Appuyez sur Echap pour quitter", True, (80, 80, 80))
         self.ecran.blit(footer, (cx - footer.get_width() // 2, y))
 
+    def _dessiner_sous_menu_algorithme(self):
+        """Dessine le sous-menu de sélection d'algorithme IA."""
+        cx = LARGEUR_FENETRE // 2
+        y = 50
+
+        titre = self.police_menu_titre.render("OTHELLO", True, (100, 220, 100))
+        self.ecran.blit(titre, (cx - titre.get_width() // 2, y))
+        y += 70
+
+        if self.sous_menu == 'hva_algo':
+            sous_titre_txt = "Choisissez l'algorithme de l'IA"
+        elif self.sous_menu == 'ava_blanc_algo':
+            sous_titre_txt = "Algorithme de l'IA Blanc"
+        elif self.sous_menu == 'ava_noir_algo':
+            algo_b = ALGORITHMES[self.algo_ava_blanc]
+            strat_b = STRATEGIES[self.strat_ava_blanc]
+            sous_titre_txt = f"Algorithme IA Noir  (Blanc : {algo_b} / {strat_b})"
+        else:
+            sous_titre_txt = ""
+
+        sous_titre = self.police_info.render(sous_titre_txt, True, COULEUR_TEXTE_DIM)
+        self.ecran.blit(sous_titre, (cx - sous_titre.get_width() // 2, y))
+        y += 50
+
+        mx, my = pygame.mouse.get_pos()
+        largeur_btn = 380
+        hauteur_btn = 65
+
+        algo_descriptions = {
+            ALGO_NEGAMAX: "NegaMax + élagage α-β + table de transposition",
+            ALGO_MINMAX: "MinMax classique + élagage α-β + transposition",
+            ALGO_MCTS: "Monte Carlo Tree Search — simulations aléatoires",
+        }
+
+        algo_couleurs = {
+            ALGO_NEGAMAX: (100, 255, 180),
+            ALGO_MINMAX: (255, 200, 100),
+            ALGO_MCTS: (180, 130, 255),
+        }
+
+        self.rects_algo = []
+
+        for algo_id in [ALGO_NEGAMAX, ALGO_MINMAX, ALGO_MCTS]:
+            x_btn = cx - largeur_btn // 2
+            rect = pygame.Rect(x_btn, y, largeur_btn, hauteur_btn)
+            self.rects_algo.append((rect, algo_id))
+
+            survol = rect.collidepoint(mx, my)
+            couleur_accent = algo_couleurs[algo_id]
+            couleur_bg = (50, 50, 60) if survol else (35, 35, 45)
+            couleur_bord = couleur_accent if survol else (60, 60, 70)
+
+            pygame.draw.rect(self.ecran, couleur_bg, rect, border_radius=12)
+            pygame.draw.rect(self.ecran, couleur_bord, rect, 2, border_radius=12)
+
+            nom = ALGORITHMES[algo_id]
+            lbl = self.police_menu_btn.render(nom, True, couleur_accent)
+            self.ecran.blit(lbl, (cx - lbl.get_width() // 2, y + 12))
+
+            d = self.police_menu_desc.render(algo_descriptions[algo_id], True, COULEUR_TEXTE_DIM)
+            self.ecran.blit(d, (cx - d.get_width() // 2, y + 40))
+
+            y += hauteur_btn + 14
+
+        # Bouton Retour
+        y += 10
+        largeur_retour = 160
+        hauteur_retour = 40
+        x_retour = cx - largeur_retour // 2
+        self.rect_retour = pygame.Rect(x_retour, y, largeur_retour, hauteur_retour)
+        survol_retour = self.rect_retour.collidepoint(mx, my)
+        couleur_retour = (70, 50, 50) if survol_retour else (50, 40, 40)
+        pygame.draw.rect(self.ecran, couleur_retour, self.rect_retour, border_radius=10)
+        pygame.draw.rect(self.ecran, (150, 80, 80) if survol_retour else (80, 60, 60),
+                         self.rect_retour, 2, border_radius=10)
+        retour_txt = self.police_bouton.render("\u2190 Retour", True, COULEUR_TEXTE)
+        self.ecran.blit(retour_txt, (cx - retour_txt.get_width() // 2,
+                                     y + (hauteur_retour - retour_txt.get_height()) // 2))
+
     def _dessiner_sous_menu_strategie(self):
         """Dessine le sous-menu de sélection de stratégie IA."""
         cx = LARGEUR_FENETRE // 2
@@ -565,12 +655,16 @@ class JeuOthelloGUI:
 
         # Sous-titre selon le contexte
         if self.sous_menu == 'hva':
-            sous_titre_txt = "Choisissez la stratégie de l'IA"
+            algo_txt = ALGORITHMES[self.algo_hva]
+            sous_titre_txt = f"Stratégie de l'IA ({algo_txt})"
         elif self.sous_menu == 'ava_blanc':
-            sous_titre_txt = "Stratégie de l'IA Blanc"
+            algo_txt = ALGORITHMES[self.algo_ava_blanc]
+            sous_titre_txt = f"Stratégie IA Blanc ({algo_txt})"
         elif self.sous_menu == 'ava_noir':
+            algo_b = ALGORITHMES[self.algo_ava_blanc]
             strat_b = STRATEGIES[self.strat_ava_blanc]
-            sous_titre_txt = f"Stratégie de l'IA Noir  (Blanc : {strat_b})"
+            algo_txt = ALGORITHMES[self.algo_ava_noir]
+            sous_titre_txt = f"Stratégie IA Noir ({algo_txt})  (Blanc : {algo_b} / {strat_b})"
         else:
             sous_titre_txt = ""
 
@@ -640,17 +734,38 @@ class JeuOthelloGUI:
 
     def gerer_clic_menu(self, x, y):
         """Gère un clic dans le menu ou les sous-menus."""
-        # Sous-menu de stratégie
         if self.sous_menu is not None:
             # Bouton retour
             if hasattr(self, 'rect_retour') and self.rect_retour.collidepoint(x, y):
-                if self.sous_menu == 'ava_noir':
-                    self.sous_menu = 'ava_blanc'
-                else:
-                    self.sous_menu = None
+                retour_map = {
+                    'hva_algo': None,
+                    'hva': 'hva_algo',
+                    'ava_blanc_algo': None,
+                    'ava_blanc': 'ava_blanc_algo',
+                    'ava_noir_algo': 'ava_blanc',
+                    'ava_noir': 'ava_noir_algo',
+                }
+                self.sous_menu = retour_map.get(self.sous_menu, None)
                 return
 
-            # Boutons de stratégie
+            # Sous-menus algorithme
+            if self.sous_menu.endswith('_algo'):
+                if hasattr(self, 'rects_algo'):
+                    for rect, algo_id in self.rects_algo:
+                        if rect.collidepoint(x, y):
+                            if self.sous_menu == 'hva_algo':
+                                self.algo_hva = algo_id
+                                self.sous_menu = 'hva'
+                            elif self.sous_menu == 'ava_blanc_algo':
+                                self.algo_ava_blanc = algo_id
+                                self.sous_menu = 'ava_blanc'
+                            elif self.sous_menu == 'ava_noir_algo':
+                                self.algo_ava_noir = algo_id
+                                self.sous_menu = 'ava_noir'
+                            return
+                return
+
+            # Sous-menus stratégie
             if hasattr(self, 'rects_strat'):
                 for rect, strat_id in self.rects_strat:
                     if rect.collidepoint(x, y):
@@ -660,7 +775,7 @@ class JeuOthelloGUI:
                             self.lancer_mode(self.MODE_HVA)
                         elif self.sous_menu == 'ava_blanc':
                             self.strat_ava_blanc = strat_id
-                            self.sous_menu = 'ava_noir'
+                            self.sous_menu = 'ava_noir_algo'
                         elif self.sous_menu == 'ava_noir':
                             self.strat_ava_noir = strat_id
                             self.sous_menu = None
@@ -676,9 +791,9 @@ class JeuOthelloGUI:
                 if mode == self.MODE_HVH:
                     self.lancer_mode(mode)
                 elif mode == self.MODE_HVA:
-                    self.sous_menu = 'hva'
+                    self.sous_menu = 'hva_algo'
                 elif mode == self.MODE_AVA:
-                    self.sous_menu = 'ava_blanc'
+                    self.sous_menu = 'ava_blanc_algo'
                 return
 
     # ─────────────────────────────────────────────────────────
@@ -836,10 +951,16 @@ class JeuOthelloGUI:
                         self.ia_reflechit = False
                     elif event.key == pygame.K_ESCAPE:
                         if self.sous_menu is not None:
-                            if self.sous_menu == 'ava_noir':
-                                self.sous_menu = 'ava_blanc'
-                            else:
-                                self.sous_menu = None
+                            retour_map = {
+                                'hva_algo': None,
+                                'hva': 'hva_algo',
+                                'ava_blanc_algo': None,
+                                'ava_blanc': 'ava_blanc_algo',
+                                'ava_noir_algo': 'ava_blanc',
+                                'ava_noir': 'ava_noir_algo',
+                            }
+                            self.sous_menu = retour_map.get(
+                                self.sous_menu, None)
                         else:
                             en_cours = False
 

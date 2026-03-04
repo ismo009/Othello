@@ -17,6 +17,7 @@ Techniques utilisées :
   - Stratégies par phase (ouverture / milieu / fin de partie)
 """
 
+import math
 import random
 import time
 from othello import (
@@ -43,6 +44,17 @@ STRATEGIES = {
     STRAT_ABSOLU: "Absolue",
     STRAT_MOBILITE: "Mobilité",
     STRAT_MIXTE: "Mixte",
+}
+
+# Algorithmes de recherche disponibles
+ALGO_NEGAMAX = "negamax"
+ALGO_MINMAX = "minmax"
+ALGO_MCTS = "mcts"
+
+ALGORITHMES = {
+    ALGO_NEGAMAX: "NegaMax α-β",
+    ALGO_MINMAX: "MinMax α-β",
+    ALGO_MCTS: "MCTS",
 }
 
 # Table de poids positionnels classique pour Othello 8x8
@@ -547,21 +559,51 @@ TT_ALPHA = 1  # Borne supérieure
 TT_BETA = 2   # Borne inférieure
 
 
+# ═══════════════════════════════════════════════════════════════
+# MCTS — Noeud de l'arbre de recherche
+# ═══════════════════════════════════════════════════════════════
+
+class NoeudMCTS:
+    """Noeud de l'arbre Monte Carlo Tree Search."""
+
+    def __init__(self, plateau, joueur, coup=None, parent=None):
+        self.plateau = [row[:] for row in plateau]
+        self.joueur = joueur
+        self.coup = coup
+        self.parent = parent
+        self.enfants = []
+        self.visites = 0
+        self.victoires = 0.0
+        self.coups_non_explores = coups_valides_rapide(self.plateau, self.joueur)
+
+    def est_terminal(self):
+        """Vérifie si le noeud est un état terminal."""
+        return (not self.coups_non_explores and
+                not coups_valides_rapide(self.plateau, adversaire(self.joueur)))
+
+    def est_totalement_expanse(self):
+        """Vérifie si tous les coups ont été explorés."""
+        return len(self.coups_non_explores) == 0
+
+
 class IAOthello:
     """Moteur d'IA pour Othello."""
 
-    def __init__(self, couleur, profondeur_max=8, temps_max=5.0, strategie=STRAT_MIXTE):
+    def __init__(self, couleur, profondeur_max=8, temps_max=5.0,
+                 strategie=STRAT_MIXTE, algorithme=ALGO_NEGAMAX):
         """
         Args:
             couleur: NOIR ou BLANC
             profondeur_max: profondeur maximale de recherche
             temps_max: temps maximum par coup en secondes
             strategie: type de stratégie d'évaluation
+            algorithme: algorithme de recherche (negamax, minmax, mcts)
         """
         self.couleur = couleur
         self.profondeur_max = profondeur_max
         self.temps_max = temps_max
         self.strategie = strategie
+        self.algorithme = algorithme
         self.fn_evaluation = FONCTIONS_EVALUATION[strategie]
 
         # Table de transposition : hash → (profondeur, score, type, meilleur_coup)
@@ -593,7 +635,7 @@ class IAOthello:
 
     def choisir_coup(self, plateau):
         """
-        Choisit le meilleur coup pour l'IA en utilisant l'approfondissement itératif.
+        Choisit le meilleur coup pour l'IA.
         Retourne (ligne, col) ou None si aucun coup possible.
         """
         coups = coups_valides_rapide(plateau, self.couleur)
@@ -606,26 +648,38 @@ class IAOthello:
         self.temps_debut = time.time()
         self.timeout = False
 
+        if self.algorithme == ALGO_MCTS:
+            coup = self._choisir_coup_mcts(plateau)
+        elif self.algorithme == ALGO_MINMAX:
+            coup = self._choisir_coup_minmax(plateau)
+        else:
+            coup = self._choisir_coup_negamax(plateau)
+
+        self.stats['temps'] = time.time() - self.temps_debut
+        self.stats['noeuds'] = self.noeuds_explores
+        return coup
+
+    # ─── NegaMax ────────────────────────────────────────────
+
+    def _choisir_coup_negamax(self, plateau):
+        """Choix de coup par NegaMax avec approfondissement itératif."""
+        coups = coups_valides_rapide(plateau, self.couleur)
         vides = compter_cases_vides(plateau)
 
-        # En fin de partie, résolution exacte si assez peu de cases
         if vides <= 14:
-            profondeur_limite = vides  # Résoudre exactement
+            profondeur_limite = vides
         else:
             profondeur_limite = self.profondeur_max
 
         meilleur_coup = coups[0]
         meilleur_score = -INF
 
-        # Approfondissement itératif
         for profondeur in range(1, profondeur_limite + 1):
             if self.timeout:
                 break
 
             score_courant = -INF
             coup_courant = None
-
-            # Trier avec le meilleur coup de l'itération précédente en premier
             coups_tries = trier_coups(coups, plateau, self.couleur, meilleur_coup)
 
             alpha = -INF
@@ -642,13 +696,11 @@ class IAOthello:
 
                 score = -self._negamax(plateau, adversaire(self.couleur),
                                        profondeur - 1, -beta, -alpha)
-
                 annuler_coup(plateau, l, c, self.couleur, pions)
 
                 if score > score_courant:
                     score_courant = score
                     coup_courant = coup
-
                 if score > alpha:
                     alpha = score
 
@@ -657,14 +709,252 @@ class IAOthello:
                 meilleur_score = score_courant
                 self.stats['profondeur_atteinte'] = profondeur
 
-            # Si on a trouvé un coup gagnant certain, pas besoin de chercher plus
             if meilleur_score >= INF - 200:
                 break
 
-        self.stats['temps'] = time.time() - self.temps_debut
-        self.stats['noeuds'] = self.noeuds_explores
+        return meilleur_coup
+
+    # ─── MinMax ─────────────────────────────────────────────
+
+    def _choisir_coup_minmax(self, plateau):
+        """Choix de coup par MinMax avec approfondissement itératif."""
+        coups = coups_valides_rapide(plateau, self.couleur)
+        vides = compter_cases_vides(plateau)
+
+        if vides <= 14:
+            profondeur_limite = vides
+        else:
+            profondeur_limite = self.profondeur_max
+
+        meilleur_coup = coups[0]
+        meilleur_score = -INF
+
+        for profondeur in range(1, profondeur_limite + 1):
+            if self.timeout:
+                break
+
+            score_courant = -INF
+            coup_courant = None
+            coups_tries = trier_coups(coups, plateau, self.couleur, meilleur_coup)
+
+            alpha = -INF
+            beta = INF
+
+            for coup in coups_tries:
+                if self.timeout:
+                    break
+
+                l, c = coup
+                pions = jouer_coup_rapide(plateau, l, c, self.couleur)
+                if pions is None:
+                    continue
+
+                score = self._minmax(plateau, adversaire(self.couleur),
+                                     profondeur - 1, alpha, beta, False)
+                annuler_coup(plateau, l, c, self.couleur, pions)
+
+                if score > score_courant:
+                    score_courant = score
+                    coup_courant = coup
+                if score > alpha:
+                    alpha = score
+
+            if not self.timeout and coup_courant is not None:
+                meilleur_coup = coup_courant
+                meilleur_score = score_courant
+                self.stats['profondeur_atteinte'] = profondeur
+
+            if meilleur_score >= INF - 200:
+                break
 
         return meilleur_coup
+
+    def _minmax(self, plateau, joueur, profondeur, alpha, beta, est_maximisant):
+        """MinMax classique avec élagage Alpha-Beta et table de transposition."""
+        if time.time() - self.temps_debut > self.temps_max:
+            self.timeout = True
+            return 0
+
+        self.noeuds_explores += 1
+
+        h = zobrist_hash(plateau, joueur)
+        tt_entry = self.table_transposition.get(h)
+        tt_best_move = None
+
+        if tt_entry is not None:
+            tt_depth, tt_score, tt_type, tt_move = tt_entry
+            if tt_depth >= profondeur:
+                self.stats['tt_hits'] += 1
+                if tt_type == TT_EXACT:
+                    return tt_score
+                elif tt_type == TT_BETA and tt_score >= beta:
+                    return tt_score
+                elif tt_type == TT_ALPHA and tt_score <= alpha:
+                    return tt_score
+            tt_best_move = tt_move
+
+        if profondeur == 0:
+            score = self.fn_evaluation(plateau, self.couleur)
+            self.table_transposition[h] = (0, score, TT_EXACT, None)
+            return score
+
+        coups = coups_valides_rapide(plateau, joueur)
+
+        if not coups:
+            coups_adv = coups_valides_rapide(plateau, adversaire(joueur))
+            if not coups_adv:
+                return self.fn_evaluation(plateau, self.couleur)
+            else:
+                return self._minmax(plateau, adversaire(joueur),
+                                    profondeur, alpha, beta, not est_maximisant)
+
+        coups = trier_coups(coups, plateau, joueur, tt_best_move)
+        meilleur_coup = coups[0]
+
+        if est_maximisant:
+            meilleur_score = -INF
+            tt_type = TT_ALPHA
+            for coup in coups:
+                if self.timeout:
+                    return 0
+                l, c = coup
+                pions = jouer_coup_rapide(plateau, l, c, joueur)
+                if pions is None:
+                    continue
+                score = self._minmax(plateau, adversaire(joueur),
+                                     profondeur - 1, alpha, beta, False)
+                annuler_coup(plateau, l, c, joueur, pions)
+                if score > meilleur_score:
+                    meilleur_score = score
+                    meilleur_coup = coup
+                if score > alpha:
+                    alpha = score
+                    tt_type = TT_EXACT
+                if alpha >= beta:
+                    self.stats['coupes'] += 1
+                    tt_type = TT_BETA
+                    break
+        else:
+            meilleur_score = INF
+            tt_type = TT_BETA
+            for coup in coups:
+                if self.timeout:
+                    return 0
+                l, c = coup
+                pions = jouer_coup_rapide(plateau, l, c, joueur)
+                if pions is None:
+                    continue
+                score = self._minmax(plateau, adversaire(joueur),
+                                     profondeur - 1, alpha, beta, True)
+                annuler_coup(plateau, l, c, joueur, pions)
+                if score < meilleur_score:
+                    meilleur_score = score
+                    meilleur_coup = coup
+                if score < beta:
+                    beta = score
+                    tt_type = TT_EXACT
+                if alpha >= beta:
+                    self.stats['coupes'] += 1
+                    tt_type = TT_ALPHA
+                    break
+
+        if not self.timeout:
+            self.table_transposition[h] = (profondeur, meilleur_score,
+                                            tt_type, meilleur_coup)
+        return meilleur_score
+
+    # ─── MCTS ───────────────────────────────────────────────
+
+    def _choisir_coup_mcts(self, plateau):
+        """Choix de coup par Monte Carlo Tree Search."""
+        racine = NoeudMCTS(plateau, self.couleur)
+
+        iterations = 0
+        while time.time() - self.temps_debut < self.temps_max:
+            # Sélection
+            noeud = self._mcts_selection(racine)
+            # Expansion
+            if not noeud.est_terminal() and noeud.visites > 0:
+                noeud = self._mcts_expansion(noeud)
+            # Simulation
+            resultat = self._mcts_simulation(noeud)
+            # Rétropropagation
+            self._mcts_retropropagation(noeud, resultat)
+            iterations += 1
+            self.noeuds_explores += 1
+
+        self.stats['profondeur_atteinte'] = iterations
+
+        if not racine.enfants:
+            coups = coups_valides_rapide(plateau, self.couleur)
+            return coups[0] if coups else None
+
+        meilleur = max(racine.enfants, key=lambda n: n.visites)
+        return meilleur.coup
+
+    def _mcts_selection(self, noeud):
+        """Sélection UCB1 : descend l'arbre vers la feuille la plus prometteuse."""
+        while not noeud.est_terminal():
+            if not noeud.est_totalement_expanse():
+                return noeud
+            noeud = self._meilleur_enfant_ucb1(noeud)
+        return noeud
+
+    def _meilleur_enfant_ucb1(self, noeud, c=1.41):
+        """Sélectionne le meilleur enfant selon la formule UCB1."""
+        def ucb1(enfant):
+            if enfant.visites == 0:
+                return float('inf')
+            exploitation = enfant.victoires / enfant.visites
+            exploration = c * math.sqrt(math.log(noeud.visites) / enfant.visites)
+            if noeud.joueur == self.couleur:
+                return exploitation + exploration
+            else:
+                return (1.0 - exploitation) + exploration
+        return max(noeud.enfants, key=ucb1)
+
+    def _mcts_expansion(self, noeud):
+        """Expansion : ajoute un enfant non exploré au noeud."""
+        idx = random.randint(0, len(noeud.coups_non_explores) - 1)
+        coup = noeud.coups_non_explores.pop(idx)
+        nouveau_plateau = [row[:] for row in noeud.plateau]
+        jouer_coup_rapide(nouveau_plateau, coup[0], coup[1], noeud.joueur)
+        enfant = NoeudMCTS(nouveau_plateau, adversaire(noeud.joueur),
+                           coup=coup, parent=noeud)
+        noeud.enfants.append(enfant)
+        return enfant
+
+    def _mcts_simulation(self, noeud):
+        """Simulation : partie aléatoire depuis le noeud jusqu'à la fin."""
+        plateau = [row[:] for row in noeud.plateau]
+        joueur = noeud.joueur
+
+        while True:
+            coups = coups_valides_rapide(plateau, joueur)
+            if not coups:
+                coups_adv = coups_valides_rapide(plateau, adversaire(joueur))
+                if not coups_adv:
+                    break
+                joueur = adversaire(joueur)
+                continue
+            coup = random.choice(coups)
+            jouer_coup_rapide(plateau, coup[0], coup[1], joueur)
+            joueur = adversaire(joueur)
+
+        noirs, blancs = compter_pions(plateau)
+        if self.couleur == NOIR:
+            return 1.0 if noirs > blancs else (0.0 if noirs < blancs else 0.5)
+        else:
+            return 1.0 if blancs > noirs else (0.0 if blancs < noirs else 0.5)
+
+    def _mcts_retropropagation(self, noeud, resultat):
+        """Rétropropagation : met à jour les stats de la feuille à la racine."""
+        while noeud is not None:
+            noeud.visites += 1
+            noeud.victoires += resultat
+            noeud = noeud.parent
+
+    # ─── NegaMax (méthode interne) ──────────────────────────
 
     def _negamax(self, plateau, joueur, profondeur, alpha, beta):
         """
