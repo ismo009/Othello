@@ -18,8 +18,8 @@ from ia import (IAOthello, STRATEGIES, STRAT_MIXTE, STRAT_POSITIONNEL, STRAT_ABS
 # ─────────────────────────────────────────────────────────────
 # Couleurs
 # ─────────────────────────────────────────────────────────────
-COULEUR_FOND        = (34, 139, 34)      # Vert plateau
-COULEUR_GRILLE      = (0, 80, 0)         # Lignes du plateau
+COULEUR_FOND        = (255, 192, 203)      # Vert plateau
+COULEUR_GRILLE      = (80, 0, 0)         # Lignes du plateau
 COULEUR_NOIR        = (15, 15, 15)       # Pions noirs
 COULEUR_BLANC       = (240, 240, 240)    # Pions blancs
 COULEUR_VALIDE      = (0, 200, 0, 120)   # Coups valides (semi-transparent)

@@ -1,65 +1,173 @@
 ============================================================
-BENCHMARK IA OTHELLO � Confrontation des strat�gies
-Profondeur: 6, Temps max: 3.0s, Parties par paire: 1
+BENCHMARK IA OTHELLO — Confrontation des stratégies
+Profondeur: 6, Temps max: 3.0s, Parties par paire: 10
 ============================================================
 
 --- Positionnelle (Blanc) vs Absolue (Noir) ---
-  Partie 1: 41-23 (Positionnelle gagne) [34.2s]
+  Partie 1: 41-23 (Positionnelle gagne) [38.5s]
+  Partie 2: 41-23 (Positionnelle gagne) [43.4s]
+  Partie 3: 41-23 (Positionnelle gagne) [43.1s]
+  Partie 4: 41-23 (Positionnelle gagne) [43.2s]
+  Partie 5: 41-23 (Positionnelle gagne) [43.0s]
+  Partie 6: 41-23 (Positionnelle gagne) [43.1s]
+  Partie 7: 38-26 (Positionnelle gagne) [44.5s]
+  Partie 8: 41-23 (Positionnelle gagne) [43.5s]
+  Partie 9: 41-23 (Positionnelle gagne) [32.1s]
+  Partie 10: 41-23 (Positionnelle gagne) [44.0s]
 
---- Positionnelle (Blanc) vs Mobilit� (Noir) ---
-  Partie 1: 25-39 (Mobilit� gagne) [37.7s]
+--- Positionnelle (Blanc) vs Mobilité (Noir) ---
+  Partie 1: 25-39 (Mobilité gagne) [42.5s]
+  Partie 2: 25-39 (Mobilité gagne) [42.3s]
+  Partie 3: 25-39 (Mobilité gagne) [41.9s]
+  Partie 4: 25-39 (Mobilité gagne) [41.8s]
+  Partie 5: 25-39 (Mobilité gagne) [41.8s]
+  Partie 6: 23-41 (Mobilité gagne) [42.9s]
+  Partie 7: 25-39 (Mobilité gagne) [42.2s]
+  Partie 8: 25-39 (Mobilité gagne) [41.8s]
+  Partie 9: 25-39 (Mobilité gagne) [41.8s]
+  Partie 10: 25-39 (Mobilité gagne) [41.6s]
 
 --- Positionnelle (Blanc) vs Mixte (Noir) ---
-  Partie 1: 28-36 (Mixte gagne) [37.0s]
+  Partie 1: 28-36 (Mixte gagne) [47.3s]
+  Partie 2: 28-36 (Mixte gagne) [47.3s]
+  Partie 3: 28-36 (Mixte gagne) [47.6s]
+  Partie 4: 28-36 (Mixte gagne) [50.2s]
+  Partie 5: 28-36 (Mixte gagne) [64.5s]
+  Partie 6: 28-36 (Mixte gagne) [50.1s]
+  Partie 7: 28-36 (Mixte gagne) [45.9s]
+  Partie 8: 28-36 (Mixte gagne) [45.8s]
+  Partie 9: 28-36 (Mixte gagne) [45.8s]
+  Partie 10: 28-36 (Mixte gagne) [45.7s]
 
 --- Absolue (Blanc) vs Positionnelle (Noir) ---
-  Partie 1: 12-52 (Positionnelle gagne) [22.4s]
+  Partie 1: 13-51 (Positionnelle gagne) [35.0s]
+  Partie 2: 13-51 (Positionnelle gagne) [35.0s]
+  Partie 3: 13-51 (Positionnelle gagne) [35.0s]
+  Partie 4: 13-51 (Positionnelle gagne) [35.0s]
+  Partie 5: 13-51 (Positionnelle gagne) [34.9s]
+  Partie 6: 13-51 (Positionnelle gagne) [34.9s]
+  Partie 7: 13-51 (Positionnelle gagne) [34.9s]
+  Partie 8: 13-51 (Positionnelle gagne) [35.0s]
+  Partie 9: 13-51 (Positionnelle gagne) [35.0s]
+  Partie 10: 13-51 (Positionnelle gagne) [35.0s]
 
---- Absolue (Blanc) vs Mobilit� (Noir) ---
-  Partie 1: 28-36 (Mobilit� gagne) [31.0s]
+--- Absolue (Blanc) vs Mobilité (Noir) ---
+  Partie 1: 28-36 (Mobilité gagne) [37.1s]
+  Partie 2: 28-36 (Mobilité gagne) [37.0s]
+  Partie 3: 28-36 (Mobilité gagne) [37.0s]
+  Partie 4: 28-36 (Mobilité gagne) [37.0s]
+  Partie 5: 28-36 (Mobilité gagne) [37.0s]
+  Partie 6: 28-36 (Mobilité gagne) [37.2s]
+  Partie 7: 28-36 (Mobilité gagne) [37.1s]
+  Partie 8: 28-36 (Mobilité gagne) [37.1s]
+  Partie 9: 28-36 (Mobilité gagne) [37.0s]
+  Partie 10: 28-36 (Mobilité gagne) [37.0s]
 
 --- Absolue (Blanc) vs Mixte (Noir) ---
-  Partie 1: 3-59 (Mixte gagne) [38.6s]
+  Partie 1: 3-59 (Mixte gagne) [41.1s]
+  Partie 2: 3-59 (Mixte gagne) [27.8s]
+  Partie 3: 3-59 (Mixte gagne) [26.4s]
+  Partie 4: 3-59 (Mixte gagne) [26.3s]
+  Partie 5: 3-59 (Mixte gagne) [26.4s]
+  Partie 6: 3-59 (Mixte gagne) [26.3s]
+  Partie 7: 3-59 (Mixte gagne) [26.5s]
+  Partie 8: 3-59 (Mixte gagne) [26.4s]
+  Partie 9: 3-59 (Mixte gagne) [26.4s]
+  Partie 10: 3-59 (Mixte gagne) [26.4s]
 
---- Mobilit� (Blanc) vs Positionnelle (Noir) ---
-  Partie 1: 34-30 (Mobilit� gagne) [54.3s]
+--- Mobilité (Blanc) vs Positionnelle (Noir) ---
+  Partie 1: 34-30 (Mobilité gagne) [40.4s]
+  Partie 2: 34-30 (Mobilité gagne) [40.4s]
+  Partie 3: 34-30 (Mobilité gagne) [40.4s]
+  Partie 4: 34-30 (Mobilité gagne) [40.4s]
+  Partie 5: 34-30 (Mobilité gagne) [40.5s]
+  Partie 6: 34-30 (Mobilité gagne) [40.4s]
+  Partie 7: 34-30 (Mobilité gagne) [40.4s]
+  Partie 8: 34-30 (Mobilité gagne) [40.4s]
+  Partie 9: 34-30 (Mobilité gagne) [40.4s]
+  Partie 10: 34-30 (Mobilité gagne) [40.5s]
 
---- Mobilit� (Blanc) vs Absolue (Noir) ---
-  Partie 1: 55-2 (Mobilit� gagne) [36.4s]
+--- Mobilité (Blanc) vs Absolue (Noir) ---
+  Partie 1: 55-2 (Mobilité gagne) [29.0s]
+  Partie 2: 55-2 (Mobilité gagne) [28.7s]
+  Partie 3: 55-2 (Mobilité gagne) [28.7s]
+  Partie 4: 55-2 (Mobilité gagne) [28.8s]
+  Partie 5: 55-2 (Mobilité gagne) [28.6s]
+  Partie 6: 55-2 (Mobilité gagne) [28.7s]
+  Partie 7: 55-2 (Mobilité gagne) [28.7s]
+  Partie 8: 55-2 (Mobilité gagne) [28.7s]
+  Partie 9: 55-2 (Mobilité gagne) [28.7s]
+  Partie 10: 55-2 (Mobilité gagne) [28.8s]
 
---- Mobilit� (Blanc) vs Mixte (Noir) ---
-  Partie 1: 32-32 (Nul) [76.1s]
+--- Mobilité (Blanc) vs Mixte (Noir) ---
+  Partie 1: 33-31 (Mobilité gagne) [48.4s]
+  Partie 2: 33-31 (Mobilité gagne) [48.2s]
+  Partie 3: 33-31 (Mobilité gagne) [48.2s]
+  Partie 4: 33-31 (Mobilité gagne) [48.1s]
+  Partie 5: 33-31 (Mobilité gagne) [48.0s]
+  Partie 6: 33-31 (Mobilité gagne) [48.0s]
+  Partie 7: 33-31 (Mobilité gagne) [48.1s]
+  Partie 8: 33-31 (Mobilité gagne) [48.2s]
+  Partie 9: 33-31 (Mobilité gagne) [48.2s]
+  Partie 10: 33-31 (Mobilité gagne) [48.1s]
 
 --- Mixte (Blanc) vs Positionnelle (Noir) ---
-  Partie 1: 42-22 (Mixte gagne) [63.9s]
+  Partie 1: 54-0 (Mixte gagne) [35.7s]
+  Partie 2: 54-0 (Mixte gagne) [35.6s]
+  Partie 3: 54-0 (Mixte gagne) [35.7s]
+  Partie 4: 54-0 (Mixte gagne) [35.7s]
+  Partie 5: 54-0 (Mixte gagne) [35.7s]
+  Partie 6: 54-0 (Mixte gagne) [35.7s]
+  Partie 7: 54-0 (Mixte gagne) [35.8s]
+  Partie 8: 54-0 (Mixte gagne) [35.6s]
+  Partie 9: 54-0 (Mixte gagne) [35.7s]
+  Partie 10: 54-0 (Mixte gagne) [35.8s]
 
 --- Mixte (Blanc) vs Absolue (Noir) ---
-  Partie 1: 53-11 (Mixte gagne) [46.3s]
+  Partie 1: 61-3 (Mixte gagne) [42.6s]
+  Partie 2: 61-3 (Mixte gagne) [42.3s]
+  Partie 3: 61-3 (Mixte gagne) [42.3s]
+  Partie 4: 53-11 (Mixte gagne) [42.9s]
+  Partie 5: 53-11 (Mixte gagne) [42.9s]
+  Partie 6: 61-3 (Mixte gagne) [42.4s]
+  Partie 7: 61-3 (Mixte gagne) [42.3s]
+  Partie 8: 53-11 (Mixte gagne) [42.9s]
+  Partie 9: 53-11 (Mixte gagne) [43.0s]
+  Partie 10: 53-11 (Mixte gagne) [42.8s]
 
---- Mixte (Blanc) vs Mobilit� (Noir) ---
-  Partie 1: 34-30 (Mixte gagne) [97.1s]
+--- Mixte (Blanc) vs Mobilité (Noir) ---
+  Partie 1: 45-19 (Mixte gagne) [66.1s]
+  Partie 2: 45-19 (Mixte gagne) [65.8s]
+  Partie 3: 45-19 (Mixte gagne) [65.6s]
+  Partie 4: 45-19 (Mixte gagne) [65.6s]
+  Partie 5: 45-19 (Mixte gagne) [65.8s]
+  Partie 6: 45-19 (Mixte gagne) [65.7s]
+  Partie 7: 45-19 (Mixte gagne) [65.9s]
+  Partie 8: 45-19 (Mixte gagne) [66.0s]
+  Partie 9: 45-19 (Mixte gagne) [67.0s]
+  Partie 10: 45-19 (Mixte gagne) [66.2s]
 
 ============================================================
 TABLEAU DES VICTOIRES (lignes = Blanc, colonnes = Noir)
 ============================================================
-               Positionnelle      Absolue     Mobilit�        Mixte
- Positionnelle           --            2            0            0
+               Positionnelle      Absolue     Mobilité        Mixte
+ Positionnelle           --           20            0            0
        Absolue            0           --            0            0
-      Mobilit�            2            2           --            0
-         Mixte            2            2            1           --
+      Mobilité           20           20           --           10
+         Mixte           20           20           10           --
 
 ============================================================
 STATISTIQUES MOYENNES PAR STRATEGIE
 ============================================================
- Positionnelle: n�uds/coup=6,426, temps/coup=0.58s, coupes/coup=1,799
-       Absolue: n�uds/coup=5,781, temps/coup=0.39s, coupes/coup=1,343
-      Mobilit�: n�uds/coup=7,506, temps/coup=1.07s, coupes/coup=2,145
-         Mixte: n�uds/coup=7,528, temps/coup=1.22s, coupes/coup=2,262
+ Positionnelle: nœuds/coup=5,545, temps/coup=0.62s, coupes/coup=1,433
+       Absolue: nœuds/coup=5,372, temps/coup=0.40s, coupes/coup=1,184
+      Mobilité: nœuds/coup=7,510, temps/coup=0.85s, coupes/coup=2,215
+         Mixte: nœuds/coup=7,308, temps/coup=0.95s, coupes/coup=2,187
 
 ============================================================
 CLASSEMENT (total victoires)
 ============================================================
-           Mixte: 5 victoires
-        Mobilit�: 4 victoires
-   Positionnelle: 2 victoires
+        Mobilité: 50 victoires
+           Mixte: 50 victoires
+   Positionnelle: 20 victoires
          Absolue: 0 victoires

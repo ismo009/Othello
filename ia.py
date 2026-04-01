@@ -525,7 +525,7 @@ FONCTIONS_EVALUATION = {
 
 # Priorité de chaque case pour le tri des coups
 _PRIORITE_COUP = [
-    [0, 5, 3, 3, 3, 3, 5, 0],  # coins = 0 (meilleur), X = 5 (pire)
+    [0, 5, 3, 3, 3, 3, 5, 0],  # coins = 0 (meilleur), X = 5 ou 6 (pire)
     [5, 6, 4, 4, 4, 4, 6, 5],
     [3, 4, 2, 2, 2, 2, 4, 3],
     [3, 4, 2, 1, 1, 2, 4, 3],
